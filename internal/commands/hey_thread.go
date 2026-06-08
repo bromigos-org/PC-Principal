@@ -36,7 +36,8 @@ func HeyThreadHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	history = append(history, store.Message{Role: "user", Content: m.Content})
+	who := memberContext(s, m)
+	history = append(history, store.Message{Role: "user", Content: fmt.Sprintf("[%s]: %s", who, m.Content)})
 
 	reply, err := callLiteLLM(history)
 	if err != nil {

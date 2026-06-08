@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -34,4 +35,35 @@ func hasAllowedRole(member *discordgo.Member) bool {
 		}
 	}
 	return false
+}
+
+// memberContext returns a string like "blackflame (Admin, Moderator)" by
+// resolving the member's role IDs to names via the Discord API.
+func memberContext(s *discordgo.Session, m *discordgo.MessageCreate) string {
+	username := m.Author.Username
+	if m.Member == nil || m.GuildID == "" {
+		return username
+	}
+
+	guildRoles, err := s.GuildRoles(m.GuildID)
+	if err != nil {
+		return username
+	}
+
+	roleMap := make(map[string]string, len(guildRoles))
+	for _, r := range guildRoles {
+		roleMap[r.ID] = r.Name
+	}
+
+	var names []string
+	for _, id := range m.Member.Roles {
+		if name, ok := roleMap[id]; ok {
+			names = append(names, name)
+		}
+	}
+
+	if len(names) == 0 {
+		return username
+	}
+	return fmt.Sprintf("%s (%s)", username, strings.Join(names, ", "))
 }

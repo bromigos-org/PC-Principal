@@ -33,9 +33,10 @@ func Chat(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	who := memberContext(s, m)
 	history := []store.Message{
 		{Role: "system", Content: pcPrincipalSystemPrompt},
-		{Role: "user", Content: topic},
+		{Role: "user", Content: fmt.Sprintf("[%s]: %s", who, topic)},
 	}
 
 	reply, err := callLiteLLM(history)

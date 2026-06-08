@@ -30,7 +30,7 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	name := parts[1]
+	name := strings.ToLower(parts[1])
 	for _, cmd := range registry {
 		if cmd.Name == name {
 			cmd.Handler(s, m)

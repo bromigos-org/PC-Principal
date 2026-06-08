@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,7 +14,7 @@ import (
 )
 
 func init() {
-	register("hey", "@PC-Principal hey <message>", "Start a conversation with PC Principal, Bromigos tech admin.", Hey)
+	register("hey", "@PC-Principal hey <message>", "Ask PC Principal something.", Hey)
 }
 
 const pcPrincipalSystemPrompt = `You are PC Principal from South Park. You are the principal who is obsessed with political correctness and gets EXTREMELY heated when anyone says something offensive — but now you've left South Park to become the tech admin for Bromigos, a Discord server full of friends who game and hang out together.
@@ -83,6 +82,7 @@ func callLiteLLM(msgs []store.Message) (string, error) {
 	return lr.Choices[0].Message.Content, nil
 }
 
+// Hey replies in-channel with a single stateless response. No thread, no history.
 func Hey(s *discordgo.Session, m *discordgo.MessageCreate) {
 	parts := strings.Fields(m.Content)
 	if len(parts) < 3 {
@@ -91,32 +91,15 @@ func Hey(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 	userMessage := strings.Join(parts[2:], " ")
 
-	history := []store.Message{
+	reply, err := callLiteLLM([]store.Message{
 		{Role: "system", Content: pcPrincipalSystemPrompt},
 		{Role: "user", Content: userMessage},
-	}
-
-	reply, err := callLiteLLM(history)
+	})
 	if err != nil {
 		fmt.Printf("hey: LiteLLM error: %v\n", err)
 		s.ChannelMessageSend(m.ChannelID, "I am TOTALLY having a technical issue right now. LiteLLM is not cooperating. This is unacceptable.")
 		return
 	}
 
-	thread, err := s.MessageThreadStartComplex(m.ChannelID, m.ID, &discordgo.ThreadStart{
-		Name:                "Chat with PC Principal",
-		AutoArchiveDuration: 60,
-	})
-	if err != nil {
-		fmt.Printf("hey: thread creation error: %v\n", err)
-		s.ChannelMessageSend(m.ChannelID, reply)
-		return
-	}
-
-	s.ChannelMessageSend(thread.ID, reply)
-
-	history = append(history, store.Message{Role: "assistant", Content: reply})
-	if err := store.Save(context.Background(), thread.ID, history); err != nil {
-		fmt.Printf("hey: store error: %v\n", err)
-	}
+	s.ChannelMessageSend(m.ChannelID, reply)
 }

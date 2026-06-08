@@ -7,12 +7,20 @@ import (
 	"syscall"
 
 	"github.com/bromigos-org/pc-principal/internal/commands"
+	"github.com/bromigos-org/pc-principal/internal/store"
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
 )
 
 func Init() {
-	_ = godotenv.Load() // Load .env file if it exists
+	_ = godotenv.Load()
+
+	if addr := os.Getenv("DRAGONFLY_ADDR"); addr != "" {
+		store.Init(addr)
+		log.Printf("Connected to DragonflyDB at %s", addr)
+	} else {
+		log.Println("Warning: DRAGONFLY_ADDR not set — hey threads will not persist")
+	}
 
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {
@@ -33,6 +41,7 @@ func Init() {
 	dg.AddHandler(onReconnect)
 
 	dg.AddHandler(commands.BotMention)
+	dg.AddHandler(commands.HeyThreadHandler)
 	dg.AddHandler(commands.VentAnonymously)
 	dg.AddHandler(commands.HandleThreadMessages)
 	dg.AddHandler(commands.VoiceStateUpdate)

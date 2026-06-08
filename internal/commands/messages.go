@@ -21,6 +21,10 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	if !hasAllowedRole(m.Member) {
+		return
+	}
+
 	parts := strings.Fields(m.Content)
 	if len(parts) < 2 {
 		return

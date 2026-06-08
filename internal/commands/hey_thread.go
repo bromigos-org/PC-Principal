@@ -15,6 +15,10 @@ func HeyThreadHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
+	if !hasAllowedRole(m.Member) {
+		return
+	}
+
 	ctx := context.Background()
 
 	exists, err := store.Exists(ctx, m.ChannelID)

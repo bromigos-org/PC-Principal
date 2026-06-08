@@ -1,4 +1,4 @@
-module github.com/bromigos-org/bromigo
+module github.com/bromigos-org/pc-principal
 
 go 1.20
 

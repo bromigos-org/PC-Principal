@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/bromigos-org/bromigo/internal/commands"
+	"github.com/bromigos-org/pc-principal/internal/commands"
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
 )

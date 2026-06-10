@@ -28,34 +28,33 @@ type healthResponse struct {
 }
 
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-	defer cancel()
-
+	// Uptime / liveness signal: process is up and serving.
+	// Discord + DragonflyDB are reported as informational fields so the
+	// dashboard dot turns green as soon as the HTTP server is reachable,
+	// while a degraded status can still be surfaced through the JSON body.
 	checks := map[string]string{
-		"discord":   "down",
+		"discord":   "unknown",
 		"dragonfly": "skipped",
 	}
 
 	overall := http.StatusOK
 	status := "ok"
 
-	// --- Discord gateway check ---
+	// --- Discord gateway check (informational) ---
 	if discordReady.Load() {
 		checks["discord"] = "ready"
 	} else {
 		checks["discord"] = "not_ready"
-		overall = http.StatusServiceUnavailable
 		status = "degraded"
 	}
 
-	// --- DragonflyDB (Redis) check, only if configured ---
+	// --- DragonflyDB (Redis) check (informational) ---
 	if c := store.Client(); c != nil {
-		pingCtx, pingCancel := context.WithTimeout(ctx, 1*time.Second)
-		err := c.Ping(pingCtx).Err()
-		pingCancel()
+		ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
+		err := c.Ping(ctx).Err()
+		cancel()
 		if err != nil {
 			checks["dragonfly"] = "unreachable: " + err.Error()
-			overall = http.StatusServiceUnavailable
 			status = "degraded"
 		} else {
 			checks["dragonfly"] = "ok"

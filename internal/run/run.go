@@ -68,14 +68,17 @@ func Init() {
 // onReady is called when the bot is ready to start receiving events.
 func onReady(s *discordgo.Session, event *discordgo.Ready) {
 	log.Println("Bot is ready.")
+	SetDiscordReady(true)
 }
 
 // onDisconnect is called when the bot disconnects from Discord.
 func onDisconnect(s *discordgo.Session, event *discordgo.Disconnect) {
 	log.Println("Bot disconnected.")
+	SetDiscordReady(false)
 }
 
 // onReconnect is called when the bot reconnects to Discord.
 func onReconnect(s *discordgo.Session, event *discordgo.Connect) {
 	log.Println("Bot reconnected.")
+	SetDiscordReady(true)
 }

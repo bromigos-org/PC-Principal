@@ -25,6 +25,11 @@ func Init(addr string) {
 	client = redis.NewClient(&redis.Options{Addr: addr})
 }
 
+// Client exposes the underlying redis client so other packages (notably the
+// health probe) can ping the connection. Returns nil if Init was never called,
+// letting callers treat that as "Dragonfly not configured" rather than an error.
+func Client() *redis.Client { return client }
+
 func key(threadID string) string { return "conversation:" + threadID }
 
 // Exists reports whether a conversation is tracked for the given thread.

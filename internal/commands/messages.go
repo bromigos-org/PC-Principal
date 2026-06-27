@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/bromigos-org/pc-principal/internal/ambient"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -24,6 +26,15 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	if !hasAllowedRole(m.Member) {
 		return
+	}
+	if ambientManager != nil {
+		decision, err := ambientManager.Decide(context.Background(), ambientMessage(s, m, true))
+		if err != nil {
+			fmt.Printf("ambient: state error: %v\n", err)
+		}
+		if decision.Stop {
+			return
+		}
 	}
 
 	parts := strings.Fields(m.Content)
@@ -48,6 +59,44 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 		fmt.Printf("mention: conversation error: %v\n", err)
 		s.ChannelMessageSend(m.ChannelID, "Bro, LiteLLM is not cooperating right now. Totally unacceptable.")
 	}
+}
+
+func AmbientReply(s *discordgo.Session, m *discordgo.MessageCreate) {
+	if ambientManager == nil || m.Author == nil || m.Author.ID == s.State.User.ID || m.Author.Bot {
+		return
+	}
+	if !hasAllowedRole(m.Member) || mentionsBot(s, m) {
+		return
+	}
+	decision, err := ambientManager.Decide(context.Background(), ambientMessage(s, m, false))
+	if err != nil {
+		fmt.Printf("ambient: state error: %v\n", err)
+		return
+	}
+	if !decision.Reply {
+		return
+	}
+	if err := handleAmbientConversation(s, m); err != nil {
+		fmt.Printf("ambient: conversation error: %v\n", err)
+		s.ChannelMessageSend(m.ChannelID, "Bro, LiteLLM is not cooperating right now. Totally unacceptable.")
+	}
+}
+
+func ambientMessage(s *discordgo.Session, m *discordgo.MessageCreate, botMentioned bool) ambient.Message {
+	return ambient.Message{ChannelID: m.ChannelID, GuildID: m.GuildID, UserID: m.Author.ID, Content: m.Content, BotMentioned: botMentioned, ReferencesBot: referencesBot(s, m)}
+}
+
+func mentionsBot(s *discordgo.Session, m *discordgo.MessageCreate) bool {
+	for _, mention := range m.Mentions {
+		if mention.ID == s.State.User.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func referencesBot(s *discordgo.Session, m *discordgo.MessageCreate) bool {
+	return m.ReferencedMessage != nil && m.ReferencedMessage.Author != nil && m.ReferencedMessage.Author.ID == s.State.User.ID
 }
 
 // reactPC reacts to the triggering message with the :PC: custom emoji.

@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bromigos-org/pc-principal/internal/ambient"
 	"github.com/bromigos-org/pc-principal/internal/commands"
 	"github.com/bromigos-org/pc-principal/internal/discordevent"
 	"github.com/bromigos-org/pc-principal/internal/memory"
@@ -38,6 +39,7 @@ func Init() {
 	memoryClient := memory.NewClient(memoryConfig, nil)
 	commands.ConfigureMemory(memoryClient)
 	configureLiveMessageIngestion(memoryClient, memoryConfig.TenantID)
+	configureAmbientReplies()
 
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {
@@ -120,6 +122,22 @@ func liveMessageHandler(s *discordgo.Session, message *discordgo.MessageCreate) 
 	commands.HeyThreadHandler(s, message)
 	commands.VentAnonymously(s, message)
 	commands.HandleThreadMessages(s, message)
+	commands.AmbientReply(s, message)
+}
+
+func configureAmbientReplies() {
+	config := ambient.LoadConfigFromEnv()
+	if !config.Enabled {
+		commands.ConfigureAmbient(nil)
+		return
+	}
+	redisClient := store.Client()
+	if redisClient == nil {
+		log.Println("Discord ambient replies enabled but DRAGONFLY_ADDR is not configured; skipping")
+		commands.ConfigureAmbient(nil)
+		return
+	}
+	commands.ConfigureAmbient(ambient.NewManager(config, ambient.NewRedisStore(redisClient), nil))
 }
 
 func ingestLiveMessage(message *discordgo.MessageCreate) {

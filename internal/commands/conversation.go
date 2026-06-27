@@ -29,6 +29,11 @@ var (
 	conversationMemoryTenantID               = "bromigos"
 )
 
+type conversationRequest struct {
+	Message     *discordgo.MessageCreate
+	UserMessage string
+}
+
 func ConfigureMemory(client memory.Client) {
 	conversationMemory = client
 	if conversationMemory == nil {
@@ -50,8 +55,16 @@ func handleMentionConversation(s *discordgo.Session, m *discordgo.MessageCreate)
 	if userMessage == "" {
 		return sendDiscordResponse(s, m.ChannelID, mentionOnlyFallback)
 	}
+	if err := handleConversation(s, conversationRequest{Message: m, UserMessage: userMessage}); err != nil {
+		return err
+	}
+	return recordAmbientActivation(m)
+}
 
+func handleConversation(s *discordgo.Session, request conversationRequest) error {
 	ctx := context.Background()
+	m := request.Message
+	userMessage := request.UserMessage
 	key := channelMemoryKey(m)
 	history, err := store.Get(ctx, key)
 	if err != nil {

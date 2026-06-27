@@ -38,6 +38,30 @@ func (c *fakeMemoryClient) AddMessage(ctx context.Context, message memory.Messag
 	return c.writeErr
 }
 
+func (c *fakeMemoryClient) GetGraphContext(ctx context.Context, request memory.GraphContextRequest) (memory.GraphContextResponse, error) {
+	return memory.GraphContextResponse{}, nil
+}
+
+func (c *fakeMemoryClient) IngestEvent(ctx context.Context, event memory.ClientEvent) error {
+	return nil
+}
+
+func (c *fakeMemoryClient) IngestEvents(ctx context.Context, events []memory.ClientEvent) (memory.ClientEventBatchResponse, error) {
+	return memory.ClientEventBatchResponse{}, nil
+}
+
+func (c *fakeMemoryClient) ListSkills(ctx context.Context, request memory.SkillListRequest) (memory.SkillListResponse, error) {
+	return memory.SkillListResponse{}, nil
+}
+
+func (c *fakeMemoryClient) ProposeSkill(ctx context.Context, proposal memory.SkillProposal) (memory.SkillProposal, error) {
+	return memory.SkillProposal{}, nil
+}
+
+func (c *fakeMemoryClient) RecordSkillUsage(ctx context.Context, usage memory.SkillUsage) error {
+	return nil
+}
+
 func TestMentionConversation_adds_recalled_memory_to_llm_prompt(t *testing.T) {
 	// Given
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}

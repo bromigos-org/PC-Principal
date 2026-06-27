@@ -18,7 +18,10 @@ const (
 	emptyAssistantResponse  = "Bro, my brain totally blanked. Try that again."
 	mentionOnlyFallback     = "Bro, I'm here. Say what you need after the mention."
 	memoryContextLimit      = 8
-	memorySystemPrefix      = "Relevant long-term memory for this conversation:\n"
+	graphContextLimit       = 8
+	shortTermSystemPrefix   = "Recent Dragonfly conversation history:\n"
+	memorySystemPrefix      = "Relevant long-term recall:\n"
+	graphSystemPrefix       = "Relevant Discord graph facts:\n"
 )
 
 var (
@@ -70,7 +73,16 @@ func handleMentionConversation(s *discordgo.Session, m *discordgo.MessageCreate)
 	if err != nil {
 		log.Printf("agents-memory context recall failed: %v", err)
 	}
-	reply, err := generateAssistant(ctx, historyWithMemoryContext(history, recalledContext))
+	graphContext, err := conversationMemory.GetGraphContext(ctx, memory.GraphContextRequest{
+		Scope:           scope,
+		Query:           userMessage,
+		Limit:           graphContextLimit,
+		IncludeTopology: true,
+	})
+	if err != nil {
+		log.Printf("agents-memory graph context recall failed: %v", err)
+	}
+	reply, err := generateAssistant(ctx, historyWithMemoryContext(history, recalledContext, graphContext.Context))
 	if err != nil {
 		return fmt.Errorf("call LiteLLM: %w", err)
 	}
@@ -90,21 +102,50 @@ func handleMentionConversation(s *discordgo.Session, m *discordgo.MessageCreate)
 	return nil
 }
 
-func historyWithMemoryContext(history []store.Message, recalledContext string) []store.Message {
-	contextText := strings.TrimSpace(recalledContext)
-	if contextText == "" {
+func historyWithMemoryContext(history []store.Message, recalledContext string, graphContext string) []store.Message {
+	contextMessages := memoryContextMessages(history, recalledContext, graphContext)
+	if len(contextMessages) == 0 {
 		return history
 	}
-	requestHistory := make([]store.Message, 0, len(history)+1)
+	requestHistory := make([]store.Message, 0, len(history)+len(contextMessages))
 	if len(history) > 0 && history[0].Role == "system" {
 		requestHistory = append(requestHistory, history[0])
-		requestHistory = append(requestHistory, store.Message{Role: "system", Content: memorySystemPrefix + contextText})
+		requestHistory = append(requestHistory, contextMessages...)
 		requestHistory = append(requestHistory, history[1:]...)
 		return requestHistory
 	}
-	requestHistory = append(requestHistory, store.Message{Role: "system", Content: memorySystemPrefix + contextText})
+	requestHistory = append(requestHistory, contextMessages...)
 	requestHistory = append(requestHistory, history...)
 	return requestHistory
+}
+
+func memoryContextMessages(history []store.Message, recalledContext string, graphContext string) []store.Message {
+	contextMessages := make([]store.Message, 0, 3)
+	if shortTerm := shortTermHistoryContext(history); shortTerm != "" {
+		contextMessages = append(contextMessages, store.Message{Role: "system", Content: shortTermSystemPrefix + shortTerm})
+	}
+	if recalled := strings.TrimSpace(recalledContext); recalled != "" {
+		contextMessages = append(contextMessages, store.Message{Role: "system", Content: memorySystemPrefix + recalled})
+	}
+	if graph := strings.TrimSpace(graphContext); graph != "" {
+		contextMessages = append(contextMessages, store.Message{Role: "system", Content: graphSystemPrefix + graph})
+	}
+	return contextMessages
+}
+
+func shortTermHistoryContext(history []store.Message) string {
+	parts := make([]string, 0, len(history))
+	for _, message := range history {
+		if message.Role == "system" {
+			continue
+		}
+		content := strings.TrimSpace(message.Content)
+		if content == "" {
+			continue
+		}
+		parts = append(parts, message.Role+": "+content)
+	}
+	return strings.Join(parts, "\n")
 }
 
 func mentionConversationText(content string, botID string) (string, bool) {

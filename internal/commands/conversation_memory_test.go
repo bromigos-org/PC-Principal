@@ -23,8 +23,11 @@ func (c *fakeAssistantClient) Generate(ctx context.Context, messages []store.Mes
 type fakeMemoryClient struct {
 	contextText string
 	contextErr  error
+	graphText   string
+	graphErr    error
 	writeErr    error
 	queries     []memory.ContextQuery
+	graphCalls  []memory.GraphContextRequest
 	messages    []memory.Message
 }
 
@@ -39,7 +42,8 @@ func (c *fakeMemoryClient) AddMessage(ctx context.Context, message memory.Messag
 }
 
 func (c *fakeMemoryClient) GetGraphContext(ctx context.Context, request memory.GraphContextRequest) (memory.GraphContextResponse, error) {
-	return memory.GraphContextResponse{}, nil
+	c.graphCalls = append(c.graphCalls, request)
+	return memory.GraphContextResponse{Context: c.graphText}, c.graphErr
 }
 
 func (c *fakeMemoryClient) IngestEvent(ctx context.Context, event memory.ClientEvent) error {
@@ -89,7 +93,7 @@ func TestMentionConversation_adds_recalled_memory_to_llm_prompt(t *testing.T) {
 	if memoryClient.queries[0].Scope.Visibility != memory.VisibilityChannel || memoryClient.queries[0].Scope.AgentID != "pc-principal" {
 		t.Fatalf("expected PC Principal channel memory scope, got %#v", memoryClient.queries[0].Scope)
 	}
-	if len(assistant.messages) < 2 || !strings.Contains(assistant.messages[1].Content, "blackflame likes expansive graph memory") {
+	if !strings.Contains(assistantPromptText(assistant.messages), "blackflame likes expansive graph memory") {
 		t.Fatalf("expected recalled memory in assistant prompt, got %#v", assistant.messages)
 	}
 }
@@ -150,4 +154,12 @@ func TestMentionConversation_ignores_memory_errors(t *testing.T) {
 	if len(recorder.sent) != 1 || recorder.sent[0].Content != "I'm PC, Texas A&M!" {
 		t.Fatalf("expected Discord reply despite memory errors, got %#v", recorder.sent)
 	}
+}
+
+func assistantPromptText(messages []store.Message) string {
+	parts := make([]string, 0, len(messages))
+	for _, message := range messages {
+		parts = append(parts, message.Content)
+	}
+	return strings.Join(parts, "\n")
 }

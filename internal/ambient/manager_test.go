@@ -24,6 +24,16 @@ func TestAmbientRepliesWithinActiveSession(t *testing.T) {
 	}
 }
 
+func TestDefaultConfigDisablesAmbientReplies(t *testing.T) {
+	// When
+	config := DefaultConfig()
+
+	// Then
+	if config.Enabled {
+		t.Fatal("expected ambient replies disabled by default")
+	}
+}
+
 func TestAmbientDoesNotReplyOutsideActiveSession(t *testing.T) {
 	// Given
 	manager := NewManager(Config{Enabled: true}, newFakeStore(), &fakeClock{now: time.Now().UTC()})

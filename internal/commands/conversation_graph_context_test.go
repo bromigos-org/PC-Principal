@@ -139,3 +139,31 @@ func TestConversationMemoryScopeSeparatesDMFromGuild(t *testing.T) {
 		t.Fatalf("expected DM and guild scopes to be isolated, got dm=%#v guild=%#v", dmScope, guildScope)
 	}
 }
+
+func TestConversationMemoryScopeSeparatesGuildChannels(t *testing.T) {
+	// Given
+	firstChannelMessage := &discordgo.MessageCreate{Message: &discordgo.Message{
+		ID:        "message-first",
+		ChannelID: "channel-1",
+		GuildID:   "guild-1",
+		Author:    &discordgo.User{ID: "user-1", Username: "blackflame"},
+	}}
+	secondChannelMessage := &discordgo.MessageCreate{Message: &discordgo.Message{
+		ID:        "message-second",
+		ChannelID: "channel-2",
+		GuildID:   "guild-1",
+		Author:    &discordgo.User{ID: "user-1", Username: "blackflame"},
+	}}
+
+	// When
+	firstScope := conversationMemoryScope(firstChannelMessage)
+	secondScope := conversationMemoryScope(secondChannelMessage)
+
+	// Then
+	if firstScope.SessionID != "guild:guild-1:channel:channel-1" || secondScope.SessionID != "guild:guild-1:channel:channel-2" {
+		t.Fatalf("expected channel-specific session ids, got first=%#v second=%#v", firstScope, secondScope)
+	}
+	if firstScope.SessionID == secondScope.SessionID || firstScope.ChannelID == secondScope.ChannelID {
+		t.Fatalf("expected same-guild channels to stay isolated, got first=%#v second=%#v", firstScope, secondScope)
+	}
+}

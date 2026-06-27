@@ -50,6 +50,30 @@ func TestWorker_Run_ingests_paginated_messages_and_advances_cursor_after_success
 	}
 }
 
+func TestWorker_Run_ingests_backfill_without_discord_reply_surface(t *testing.T) {
+	// Given
+	discord := newFakeDiscordClient()
+	discord.guilds = []*discordgo.UserGuild{{ID: "guild-1"}}
+	discord.channels["guild-1"] = []*discordgo.Channel{{ID: "channel-1", GuildID: "guild-1", Type: discordgo.ChannelTypeGuildText}}
+	discord.messages["channel-1"] = [][]*discordgo.Message{{message("m-1")}}
+	memoryClient := &fakeMemoryClient{}
+	worker := NewWorker(WorkerDeps{Discord: discord, Memory: memoryClient, Cursors: newFakeCursorStore()}, Config{Enabled: true, TenantID: "tenant-1", AgentID: "agent-1", MaxChannelsPerRun: 1, MaxMessagesPerChannel: 1, MemoryBatchSize: 1})
+
+	// When
+	summary, err := worker.Run(context.Background())
+
+	// Then
+	if err != nil {
+		t.Fatalf("run backfill: %v", err)
+	}
+	if summary.MessagesIngested != 1 || len(memoryClient.batches) != 1 {
+		t.Fatalf("expected backfill to ingest exactly one message, got summary=%#v batches=%d", summary, len(memoryClient.batches))
+	}
+	if len(discord.sent) != 0 {
+		t.Fatalf("expected backfill to avoid Discord reply sends, got %#v", discord.sent)
+	}
+}
+
 func TestWorker_Run_skips_permission_denied_channels(t *testing.T) {
 	// Given
 	discord := newFakeDiscordClient()
@@ -174,6 +198,7 @@ type fakeDiscordClient struct {
 	messages     map[string][][]*discordgo.Message
 	messageErrs  map[string]error
 	messageCalls []messageCall
+	sent         []string
 }
 
 type messageCall struct {

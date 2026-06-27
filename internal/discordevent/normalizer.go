@@ -18,12 +18,20 @@ type Snapshot struct {
 	Channels map[string]*discordgo.Channel
 }
 
+type AttachmentCopyConfig struct {
+	Enabled              bool
+	Bucket               string
+	MaxSizeBytes         int
+	ContentTypeAllowlist []string
+}
+
 type Config struct {
-	TenantID     string
-	AgentID      string
-	SourceMarker SourceMarker
-	ObservedAt   time.Time
-	Snapshot     Snapshot
+	TenantID       string
+	AgentID        string
+	SourceMarker   SourceMarker
+	ObservedAt     time.Time
+	Snapshot       Snapshot
+	AttachmentCopy AttachmentCopyConfig
 }
 
 type Normalizer struct {
@@ -31,6 +39,15 @@ type Normalizer struct {
 }
 
 func New(config Config) Normalizer {
+	if config.AttachmentCopy.Bucket == "" {
+		config.AttachmentCopy.Bucket = "pc-principal-discord-attachments"
+	}
+	if config.AttachmentCopy.MaxSizeBytes == 0 {
+		config.AttachmentCopy.MaxSizeBytes = 25_000_000
+	}
+	if len(config.AttachmentCopy.ContentTypeAllowlist) == 0 {
+		config.AttachmentCopy.ContentTypeAllowlist = []string{"image/png", "image/jpeg", "image/gif"}
+	}
 	return Normalizer{config: config}
 }
 
@@ -39,11 +56,11 @@ func (n Normalizer) NormalizeMessageCreate(message *discordgo.Message) []memory.
 	occurredAt := timestampOrObserved(message.Timestamp, n.config.ObservedAt)
 	content := sanitizeMessageContent(message.Content)
 	basePayload := memory.JsonObject{
-		"message_id":    message.ID,
-		"channel_id":    message.ChannelID,
-		"guild_id":      message.GuildID,
-		"content":       content,
-		"source_marker": string(n.config.SourceMarker),
+		"message_id":       message.ID,
+		"channel_id":       message.ChannelID,
+		"guild_id":         message.GuildID,
+		"content":          content,
+		"source_marker":    string(n.config.SourceMarker),
 		"attachment_count": len(message.Attachments),
 	}
 	events := []memory.ClientEvent{n.clientEvent(
@@ -68,8 +85,32 @@ func (n Normalizer) NormalizeChannelCreate(channel *discordgo.Channel) []memory.
 	return []memory.ClientEvent{n.normalizeChannel(channel, memory.EventTypeChannelCreated, channelScope(channel), n.categoryID(channel), channel.ParentID)}
 }
 
+func (n Normalizer) NormalizeChannelUpdate(channel *discordgo.Channel, before *discordgo.Channel) []memory.ClientEvent {
+	event := n.normalizeChannel(channel, memory.EventTypeChannelUpdated, channelScope(channel), n.categoryID(channel), channel.ParentID)
+	applyPreviousChannelPayload(event.Payload, before)
+	return []memory.ClientEvent{event}
+}
+
+func (n Normalizer) NormalizeChannelDelete(channel *discordgo.Channel) []memory.ClientEvent {
+	event := n.normalizeChannel(channel, memory.EventTypeChannelDeleted, channelScope(channel), n.categoryID(channel), channel.ParentID)
+	event.Payload["deleted"] = true
+	return []memory.ClientEvent{event}
+}
+
 func (n Normalizer) NormalizeThreadCreate(channel *discordgo.Channel) []memory.ClientEvent {
 	return []memory.ClientEvent{n.normalizeChannel(channel, memory.EventTypeThreadCreated, guildScope(channel.GuildID), n.categoryIDByParent(channel.ParentID), channel.ParentID)}
+}
+
+func (n Normalizer) NormalizeThreadUpdate(channel *discordgo.Channel, before *discordgo.Channel) []memory.ClientEvent {
+	event := n.normalizeChannel(channel, memory.EventTypeThreadUpdated, guildScope(channel.GuildID), n.categoryIDByParent(channel.ParentID), channel.ParentID)
+	applyPreviousChannelPayload(event.Payload, before)
+	return []memory.ClientEvent{event}
+}
+
+func (n Normalizer) NormalizeThreadDelete(channel *discordgo.Channel) []memory.ClientEvent {
+	event := n.normalizeChannel(channel, memory.EventTypeThreadDeleted, guildScope(channel.GuildID), n.categoryIDByParent(channel.ParentID), channel.ParentID)
+	event.Payload["deleted"] = true
+	return []memory.ClientEvent{event}
 }
 
 func (n Normalizer) NormalizeReactionAdd(reaction *discordgo.MessageReaction, member *discordgo.Member) []memory.ClientEvent {
@@ -81,8 +122,28 @@ func (n Normalizer) NormalizeReactionRemove(reaction *discordgo.MessageReaction)
 }
 
 func (n Normalizer) NormalizeRoleCreate(guildID string, role *discordgo.Role) []memory.ClientEvent {
-	return []memory.ClientEvent{n.clientEvent(
-		memory.EventTypeRoleCreated,
+	return []memory.ClientEvent{n.normalizeRole(memory.EventTypeRoleCreated, guildID, role)}
+}
+
+func (n Normalizer) NormalizeRoleUpdate(guildID string, role *discordgo.Role, before *discordgo.Role) []memory.ClientEvent {
+	event := n.normalizeRole(memory.EventTypeRoleUpdated, guildID, role)
+	applyPreviousRolePayload(event.Payload, before)
+	return []memory.ClientEvent{event}
+}
+
+func (n Normalizer) NormalizeRoleDelete(guildID string, roleID string, before *discordgo.Role) []memory.ClientEvent {
+	role := before
+	if role == nil {
+		role = &discordgo.Role{ID: roleID}
+	}
+	event := n.normalizeRole(memory.EventTypeRoleDeleted, guildID, role)
+	event.Payload["deleted"] = true
+	return []memory.ClientEvent{event}
+}
+
+func (n Normalizer) normalizeRole(eventType memory.EventType, guildID string, role *discordgo.Role) memory.ClientEvent {
+	return n.clientEvent(
+		eventType,
 		n.config.ObservedAt,
 		memory.ClientEventActor{},
 		memory.ClientEventSubject{ID: role.ID, Type: "role", ParentID: guildID},
@@ -98,9 +159,15 @@ func (n Normalizer) NormalizeRoleCreate(guildID string, role *discordgo.Role) []
 		},
 		memory.DiscordEventContext{GuildID: guildID},
 		guildScope(guildID),
-	)}
+	)
 }
 
 func (n Normalizer) NormalizeMemberUpdate(member *discordgo.Member) []memory.ClientEvent {
 	return []memory.ClientEvent{n.normalizeMember(member)}
+}
+
+func (n Normalizer) NormalizeMemberUpdateWithPrevious(member *discordgo.Member, before *discordgo.Member) []memory.ClientEvent {
+	event := n.normalizeMember(member)
+	applyPreviousMemberPayload(event.Payload, before)
+	return []memory.ClientEvent{event}
 }

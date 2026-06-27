@@ -49,11 +49,65 @@ func TestNormalizeMessageCreateStableEvent(t *testing.T) {
 	if got := liveEvents[1].Payload["filename"]; got != "a.png" {
 		t.Fatalf("expected attachment metadata, got %#v", liveEvents[1].Payload)
 	}
+	if liveEvents[1].Payload["content_type"] != "image/png" || liveEvents[1].Payload["size"] != 42 || liveEvents[1].Payload["width"] != 800 || liveEvents[1].Payload["height"] != 600 {
+		t.Fatalf("expected attachment size and type metadata, got %#v", liveEvents[1].Payload)
+	}
+	if liveEvents[1].Payload["spoiler"] != false || liveEvents[1].Payload["url"] != "https://cdn.example.com/a.png" || liveEvents[1].Payload["proxy_url"] != "https://media.example.com/a.png" {
+		t.Fatalf("expected attachment URLs and spoiler metadata, got %#v", liveEvents[1].Payload)
+	}
+	if liveEvents[1].Payload["message_id"] != "message-1" || liveEvents[1].Payload["channel_id"] != "channel-1" || liveEvents[1].Payload["guild_id"] != "guild-1" {
+		t.Fatalf("expected attachment relation metadata, got %#v", liveEvents[1].Payload)
+	}
 	if got := liveEvents[2].Payload["url"]; got != "https://example.com/docs" {
 		t.Fatalf("expected sanitized link metadata, got %#v", liveEvents[2].Payload)
 	}
+	if liveEvents[2].Payload["message_id"] != "message-1" || liveEvents[2].Payload["channel_id"] != "channel-1" || liveEvents[2].Payload["guild_id"] != "guild-1" {
+		t.Fatalf("expected link relation metadata, got %#v", liveEvents[2].Payload)
+	}
 	if liveEvents[0].Scope.Visibility != memory.VisibilityChannel || liveEvents[0].Scope.GuildID != "guild-1" {
 		t.Fatalf("expected guild message scope, got %#v", liveEvents[0].Scope)
+	}
+}
+
+func TestNewAttachmentCopyConfigDefaultsDisabled(t *testing.T) {
+	// Given
+	normalizer := New(Config{})
+
+	// When
+	copyConfig := normalizer.config.AttachmentCopy
+
+	// Then
+	if copyConfig.Enabled {
+		t.Fatalf("expected attachment copy to be disabled by default, got %#v", copyConfig)
+	}
+	if copyConfig.Bucket != "pc-principal-discord-attachments" {
+		t.Fatalf("expected bucket placeholder, got %#v", copyConfig)
+	}
+	if copyConfig.MaxSizeBytes != 25_000_000 {
+		t.Fatalf("expected max size placeholder, got %#v", copyConfig)
+	}
+	if len(copyConfig.ContentTypeAllowlist) != 3 || copyConfig.ContentTypeAllowlist[0] != "image/png" || copyConfig.ContentTypeAllowlist[1] != "image/jpeg" || copyConfig.ContentTypeAllowlist[2] != "image/gif" {
+		t.Fatalf("expected content-type allowlist placeholder, got %#v", copyConfig)
+	}
+	if copyConfig.allows(&discordgo.MessageAttachment{ContentType: "image/png", Size: 128, Filename: "a.png"}) {
+		t.Fatal("expected disabled copy policy to reject attachments")
+	}
+}
+
+func TestNormalizeMessageCreateLinkSanitizationStripsQueryAndFragment(t *testing.T) {
+	// Given
+	normalizer := New(Config{TenantID: "bromigos", AgentID: "pc-principal", SourceMarker: SourceMarkerLive, ObservedAt: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)})
+	message := &discordgo.Message{ID: "message-2", ChannelID: "channel-1", GuildID: "guild-1", Content: "visit https://example.com/path?token=secret#fragment", Timestamp: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC), Author: &discordgo.User{ID: "user-1", Username: "blackflame"}}
+
+	// When
+	events := normalizer.NormalizeMessageCreate(message)
+
+	// Then
+	if len(events) != 2 {
+		t.Fatalf("expected message and link events, got %d", len(events))
+	}
+	if events[1].Payload["url"] != "https://example.com/path" {
+		t.Fatalf("expected sanitized link metadata, got %#v", events[1].Payload)
 	}
 }
 

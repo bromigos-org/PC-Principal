@@ -37,6 +37,42 @@ Command precedence is preserved for `ping`, `help`, `chat`, `mdelete`, `mpost`, 
 - Model-generated replies may mention users, roles, `@everyone`, or `@here`. Keep `ALLOWED_ROLES` limited to users trusted with that ping authority, and restrict the bot's Discord mention permissions if mass pings should not be allowed.
 - Discord API failures degrade gracefully; missing roster/role context does not block a normal conversation reply.
 
+### Discord memory ingestion and reply rules
+
+- Live Discord ingestion is broader than the reply surface. Normal visible messages, channel and thread lifecycle changes, role and member updates, reactions, links, and attachment metadata are ingested silently when memory events are enabled.
+- Silent ingestion does not create replies on its own. Non-mention messages stay silent by default, even when they are stored for memory or graph recall.
+- Mention handling keeps command precedence. `ping`, `help`, `chat`, `mdelete`, `mpost`, and `hey` are checked first. Only mentions that are not commands fall through to the conversation path.
+- Ambient replies are off by default. They are only possible after an explicit successful mention conversation starts an active session, and the same allowed-role checks and command bypass rules still apply.
+- Live ingestion failures are non-fatal. If `agents-memory` or graph recall is unavailable, PC Principal logs the failure and continues the normal Discord command or conversation flow.
+- Backfill has no Discord reply surface. Historical replay only writes memory events, and never sends channel replies while it catches up.
+
+### Visibility, privacy, and retention
+
+- DMs use `private_user` visibility. Recall from a DM only sees that DM user's private scope, plus any wider tenant or approved agent-shared context intentionally exposed by the memory service.
+- Guild mention conversations use `channel` visibility keyed to the current guild and channel. Graph recall does not cross into sibling channels, even inside the same guild.
+- Guild topology facts such as channels, roles, and members are stored with `guild` visibility. They can support recall inside that guild, but they still stay inside the tenant and agent boundary.
+- Reviewed skill records are `agent_shared` by default. They are visible to the requesting agent within the same tenant, but proposals do not become runnable behavior.
+- The memory service also enforces tenant and agent boundaries. PC Principal uses tenant `bromigos` by default and agent ID `pc-principal`, so cross-tenant or other-agent recall is out of scope.
+- Dragonfly short-term conversation state is separate from long-term memory. Mention and `chat` history keeps the current 24 hour TTL behavior in Dragonfly, while Discord graph events keep tombstones for deletes and renames instead of hard-deleting the historical fact trail.
+
+### Backfill and ambient controls
+
+- `DISCORD_HISTORY_BACKFILL_ENABLED` and `DISCORD_BACKFILL_ENABLED` are wired to the same Helm value. The feature is disabled by default and is intended for read-only historical ingestion.
+- Default backfill caps are bounded: up to 25 channels per run, up to 500 messages per channel, batches of 50 events, 250ms request delay, 1s backoff, and 3 attempts.
+- Backfill is cursor-based and resumable. Cursor keys live under `backfill:discord:history:guild:{guild}:channel:{channel}` so they do not collide with live conversation memory.
+- Channels without `View Channel`, `Read Message History`, or other required Discord permissions are skipped, and the preflight warnings call that out instead of failing the whole bot.
+- `DISCORD_AMBIENT_REPLIES_ENABLED` and `AMBIENT_REPLIES_ENABLED` are both wired to the same guard. Default session limits are 20 minutes, 6 user turns, 2 consecutive bot replies, 90 second per-channel cooldown, and 30 second per-user cooldown.
+- Ambient mode only reuses the normal mention conversation path after the bot has already been engaged. It does not change mention command precedence, and it does not make ordinary channel ingestion chatty.
+
+### Skill and attachment policy
+
+- Reviewed skills are context, not executable self-modification. The workflow is observe, propose, ask for approval, save the approved reviewed skill, then include that reviewed skill as non-executable prompt context.
+- Unapproved proposals are never runnable. Proposed, rejected, disabled, or unreviewed records do not appear in the prompt section that the assistant uses for conversation context.
+- Skill usage tracking is only accepted for approved reviewed skills. Attempting to record usage for an unapproved proposal is rejected by `agents-memory`.
+- Attachment handling is metadata-first by default. PC Principal records attachment filename, content type, size, dimensions, spoiler status, and sanitized URLs, plus discovered links with sanitized URLs.
+- `DISCORD_ATTACHMENT_METADATA_ENABLED=true` and `DISCORD_ATTACHMENT_COPY_ENABLED=false` is the default rollout posture. `DISCORD_ATTACHMENT_COPY_POLICY=metadata-only` means no attachment bytes are copied or stored during the default deployment.
+- RustFS only becomes relevant if a future copy policy is intentionally enabled. The current documented rollout assumes metadata-only behavior, not object copying.
+
 ## Architecture
 
 ```
@@ -90,9 +126,34 @@ All config comes from environment variables (set via the Helm chart's `Deploymen
 | `LITELLM_API_KEY` | Vault `secret/homelab/pc-principal:litellm_api_key` | LLM proxy auth |
 | `DRAGONFLY_ADDR` | Helm value | Dragonfly host:port |
 | `MEMORY_ENABLED` | Helm value | Enables the shared `agents-memory` service when set to `true` |
+| `MEMORY_EVENTS_ENABLED` | Helm value | Enables silent Discord event ingestion into `agents-memory` |
+| `MEMORY_GRAPH_CONTEXT_ENABLED` | Helm value | Enables scoped Discord graph recall during mention conversations |
 | `MEMORY_SERVICE_URL` | Helm value | Base URL for `agents-memory` |
 | `MEMORY_SERVICE_TOKEN` | Vault `secret/homelab/agents-memory:token` | Bearer token for `agents-memory`; optional secret ref in k8s |
 | `MEMORY_TENANT_ID` | Helm value | Memory tenant ID, defaults to `bromigos` |
+| `DISCORD_HISTORY_BACKFILL_ENABLED` | Helm value | Enables bounded historical Discord replay into memory |
+| `DISCORD_BACKFILL_ENABLED` | Helm value | Alias for the same backfill toggle used by the chart wiring |
+| `DISCORD_HISTORY_BACKFILL_AGENT_ID` | Helm value | Agent ID stamped onto backfill events, defaults to `pc-principal` |
+| `DISCORD_HISTORY_BACKFILL_MAX_CHANNELS` | Helm value | Max channels visited in one backfill run, default `25` |
+| `DISCORD_HISTORY_BACKFILL_MAX_MESSAGES_PER_CHANNEL` | Helm value | Max messages ingested per channel in one run, default `500` |
+| `DISCORD_HISTORY_BACKFILL_MEMORY_BATCH_SIZE` | Helm value | Event batch size for backfill writes, default `50` |
+| `DISCORD_HISTORY_BACKFILL_REQUEST_DELAY` | Helm value | Delay between Discord history requests, default `250ms` |
+| `DISCORD_HISTORY_BACKFILL_BACKOFF` | Helm value | Retry backoff for Discord history requests, default `1s` |
+| `DISCORD_HISTORY_BACKFILL_MAX_ATTEMPTS` | Helm value | Retry count for Discord history requests, default `3` |
+| `DISCORD_AMBIENT_REPLIES_ENABLED` | Helm value | Enables guarded ambient replies after explicit bot engagement |
+| `AMBIENT_REPLIES_ENABLED` | Helm value | Alias for the same ambient toggle used by the chart wiring |
+| `DISCORD_AMBIENT_SESSION_TTL` | Helm value | Ambient session lifetime, default `20m` |
+| `DISCORD_AMBIENT_MAX_USER_TURNS` | Helm value | Max user turns in one ambient session, default `6` |
+| `DISCORD_AMBIENT_MAX_CONSECUTIVE_REPLIES` | Helm value | Max consecutive ambient bot replies, default `2` |
+| `DISCORD_AMBIENT_CHANNEL_REPLY_COOLDOWN` | Helm value | Minimum delay between ambient replies in one channel, default `90s` |
+| `DISCORD_AMBIENT_USER_REPLY_COOLDOWN` | Helm value | Minimum delay between ambient replies for one user, default `30s` |
+| `DISCORD_ATTACHMENT_METADATA_ENABLED` | Helm value | Enables attachment metadata capture |
+| `DISCORD_ATTACHMENT_COPY_ENABLED` | Helm value | Enables attachment byte copy only if intentionally turned on |
+| `DISCORD_ATTACHMENT_COPY_POLICY` | Helm value | Attachment copy posture, default `metadata-only` |
+| `MEMORY_SKILL_REGISTRY_ENABLED` | Helm value | Enables reviewed skill list and proposal endpoints |
+| `MEMORY_SKILL_REVIEWED_ONLY` | Helm value | Restricts returned skills to approved reviewed records |
+| `MEMORY_SKILL_PROPOSE_ENABLED` | Helm value | Enables skill proposal writes for review |
+| `MEMORY_SKILL_USAGE_ENABLED` | Helm value | Enables approved skill usage recording |
 | `ALLOWED_ROLES` | Helm value | Comma-separated Discord role IDs that may use privileged commands (e.g. `mdelete`) |
 
 ## Deployment
@@ -101,13 +162,47 @@ Deployed to the Bromigos homelab k8s cluster via ArgoCD (`gitops/argocd-apps/pc-
 
 The `DISCORD_BOT_TOKEN` and `LITELLM_API_KEY` are stored in HashiCorp Vault under `secret/homelab/pc-principal` and synced into the cluster via External Secrets Operator.
 
-To redeploy after a code change:
+To roll out a Discord memory change safely:
 
 ```bash
-git push origin main                       # triggers CI image build
-# ArgoCD picks up the new image within ~3 minutes (image-updater)
-argocd app sync pc-principal --prune      # optional force
+git push origin master
 ```
+
+Recommended rollout sequence:
+
+1. Land and review the docs and chart changes in Git.
+2. Enable core memory plumbing first: `MEMORY_ENABLED`, `MEMORY_EVENTS_ENABLED`, and `MEMORY_GRAPH_CONTEXT_ENABLED`.
+3. Keep `DISCORD_BACKFILL_ENABLED`, `DISCORD_AMBIENT_REPLIES_ENABLED`, and `AMBIENT_REPLIES_ENABLED` off for the first rollout unless the change specifically needs them.
+4. Keep attachment copy off by default with `DISCORD_ATTACHMENT_COPY_ENABLED=false` and `DISCORD_ATTACHMENT_COPY_POLICY=metadata-only`.
+5. Allow ArgoCD to reconcile from Git. Do not bypass GitOps with manual cluster apply commands, manual chart upgrade commands, or manual sync clicks for this tracked service.
+
+Rollback uses the same GitOps path. Revert or flip the smallest necessary flag in Git, push to `master`, and let ArgoCD reconcile. The main independent rollback levers are:
+
+- `MEMORY_EVENTS_ENABLED=false` to stop live Discord event ingestion while keeping the base bot online.
+- `MEMORY_GRAPH_CONTEXT_ENABLED=false` to stop graph recall without turning off basic mention conversations.
+- `DISCORD_BACKFILL_ENABLED=false` and `DISCORD_HISTORY_BACKFILL_ENABLED=false` to stop historical replay.
+- `DISCORD_AMBIENT_REPLIES_ENABLED=false` and `AMBIENT_REPLIES_ENABLED=false` to stop ambient follow-up replies.
+- `MEMORY_SKILL_REGISTRY_ENABLED=false`, `MEMORY_SKILL_PROPOSE_ENABLED=false`, or `MEMORY_SKILL_USAGE_ENABLED=false` to disable skill surfaces independently.
+- `DISCORD_ATTACHMENT_COPY_ENABLED=false` to force metadata-only attachment behavior again.
+
+### Read-only smoke checks
+
+Run these checks after GitOps reconciliation. They are read-only and safe for operators:
+
+```bash
+curl -s http://pc-principal.pc-principal.svc.cluster.local:8080/health | jq
+curl -s -H "Authorization: Bearer $MEMORY_SERVICE_TOKEN" \
+  -H "Content-Type: application/json" \
+  http://agents-memory.agents-memory.svc.cluster.local:8080/v1/skills \
+  -d '{"tenant_id":"bromigos","agent_id":"pc-principal"}' | jq
+```
+
+What to verify:
+
+- `/health` returns HTTP 200 and a JSON body with Discord `ready` or an explained degraded state.
+- Mention conversations still work, command precedence still works, and ordinary channel chatter stays silent when ambient is disabled.
+- If backfill is enabled, logs should show bounded progress and permission-denied skips, but no Discord reply traffic.
+- Skill list responses should only contain approved reviewed entries, not draft proposals.
 
 ## Development
 

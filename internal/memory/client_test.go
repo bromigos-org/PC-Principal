@@ -104,13 +104,18 @@ func TestClient_Noops_whenDisabled(t *testing.T) {
 		Role:    RoleUser,
 		Content: "hello",
 	})
+	ingestResponse, ingestErr := client.IngestEvents(context.Background(), []ClientEvent{testClientEvent()})
+	graphResponse, graphErr := client.GetGraphContext(context.Background(), GraphContextRequest{Scope: testScope(), Query: "query"})
+	skillsResponse, skillsErr := client.ListSkills(context.Background(), SkillListRequest{TenantID: "bromigos", AgentID: "pc-principal"})
+	proposalResponse, proposalErr := client.ProposeSkill(context.Background(), testSkillProposal())
+	usageErr := client.RecordSkillUsage(context.Background(), testSkillUsage())
 
 	// Then
-	if contextErr != nil || messageErr != nil {
-		t.Fatalf("expected disabled client to no-op, got contextErr=%v messageErr=%v", contextErr, messageErr)
+	if contextErr != nil || messageErr != nil || ingestErr != nil || graphErr != nil || skillsErr != nil || proposalErr != nil || usageErr != nil {
+		t.Fatalf("expected disabled client to no-op, got contextErr=%v messageErr=%v ingestErr=%v graphErr=%v skillsErr=%v proposalErr=%v usageErr=%v", contextErr, messageErr, ingestErr, graphErr, skillsErr, proposalErr, usageErr)
 	}
-	if contextText != "" {
-		t.Fatalf("expected disabled context to be empty, got %q", contextText)
+	if contextText != "" || len(ingestResponse.Results) != 0 || graphResponse.Context != "" || len(skillsResponse.Skills) != 0 || proposalResponse.ProposalID != "" {
+		t.Fatalf("expected disabled empty responses, got context=%q ingest=%#v graph=%#v skills=%#v proposal=%#v", contextText, ingestResponse, graphResponse, skillsResponse, proposalResponse)
 	}
 }
 

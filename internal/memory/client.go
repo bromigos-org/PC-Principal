@@ -25,29 +25,6 @@ const (
 	RoleSystem    Role = "system"
 )
 
-type Visibility string
-
-const (
-	VisibilityPrivateUser  Visibility = "private_user"
-	VisibilityAgentPrivate Visibility = "agent_private"
-	VisibilityAgentShared  Visibility = "agent_shared"
-	VisibilityChannel      Visibility = "channel"
-	VisibilityGuild        Visibility = "guild"
-	VisibilityTenant       Visibility = "tenant"
-	VisibilityGlobal       Visibility = "global"
-)
-
-type Scope struct {
-	TenantID   string     `json:"tenant_id"`
-	SpaceID    string     `json:"space_id"`
-	AgentID    string     `json:"agent_id"`
-	SessionID  string     `json:"session_id"`
-	UserID     string     `json:"user_id"`
-	Visibility Visibility `json:"visibility"`
-	GuildID    string     `json:"guild_id,omitempty"`
-	ChannelID  string     `json:"channel_id,omitempty"`
-}
-
 type Config struct {
 	Enabled  bool
 	BaseURL  string
@@ -70,6 +47,12 @@ type Message struct {
 type Client interface {
 	GetContext(ctx context.Context, query ContextQuery) (string, error)
 	AddMessage(ctx context.Context, message Message) error
+	IngestEvent(ctx context.Context, event ClientEvent) error
+	IngestEvents(ctx context.Context, events []ClientEvent) (ClientEventBatchResponse, error)
+	GetGraphContext(ctx context.Context, request GraphContextRequest) (GraphContextResponse, error)
+	ListSkills(ctx context.Context, request SkillListRequest) (SkillListResponse, error)
+	ProposeSkill(ctx context.Context, proposal SkillProposal) (SkillProposal, error)
+	RecordSkillUsage(ctx context.Context, usage SkillUsage) error
 }
 
 type HTTPClient struct {
@@ -163,6 +146,72 @@ func (c *HTTPClient) AddMessage(ctx context.Context, message Message) error {
 	return nil
 }
 
+func (c *HTTPClient) IngestEvent(ctx context.Context, event ClientEvent) error {
+	_, err := c.IngestEvents(ctx, []ClientEvent{event})
+	return err
+}
+
+func (c *HTTPClient) IngestEvents(ctx context.Context, events []ClientEvent) (ClientEventBatchResponse, error) {
+	var response ClientEventBatchResponse
+	if !c.enabled {
+		return response, nil
+	}
+	if err := c.postJSON(ctx, "/v1/events/batch", ClientEventBatchRequest{Events: events}, &response); err != nil {
+		return response, fmt.Errorf("ingest memory events: %w", err)
+	}
+	if hasPartialFailure(response.Results) {
+		return response, &Error{Kind: ErrorKindPartialBatch, Operation: "ingest memory events", Results: response.Results}
+	}
+	return response, nil
+}
+
+func (c *HTTPClient) GetGraphContext(ctx context.Context, request GraphContextRequest) (GraphContextResponse, error) {
+	var response GraphContextResponse
+	if !c.enabled {
+		return response, nil
+	}
+	if err := c.postJSON(ctx, "/v1/graph/context", request, &response); err != nil {
+		return response, fmt.Errorf("get memory graph context: %w", err)
+	}
+	return response, nil
+}
+
+func (c *HTTPClient) ListSkills(ctx context.Context, request SkillListRequest) (SkillListResponse, error) {
+	var response SkillListResponse
+	if !c.enabled {
+		return response, nil
+	}
+	if err := c.postJSON(ctx, "/v1/skills", request, &response); err != nil {
+		return response, fmt.Errorf("list memory skills: %w", err)
+	}
+	return response, nil
+}
+
+func (c *HTTPClient) ProposeSkill(ctx context.Context, proposal SkillProposal) (SkillProposal, error) {
+	var response SkillProposal
+	if !c.enabled {
+		return response, nil
+	}
+	if err := c.postJSON(ctx, "/v1/skills/proposals", proposal, &response); err != nil {
+		return response, fmt.Errorf("propose memory skill: %w", err)
+	}
+	return response, nil
+}
+
+func (c *HTTPClient) RecordSkillUsage(ctx context.Context, usage SkillUsage) error {
+	if !c.enabled {
+		return nil
+	}
+	var response skillUsageResponse
+	if err := c.postJSON(ctx, "/v1/skills/usage", usage, &response); err != nil {
+		return fmt.Errorf("record memory skill usage: %w", err)
+	}
+	if !response.Accepted {
+		return &Error{Kind: ErrorKindValidation, Operation: "record memory skill usage"}
+	}
+	return nil
+}
+
 func (c *HTTPClient) post(ctx context.Context, path string, body []byte) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
@@ -173,17 +222,32 @@ func (c *HTTPClient) post(ctx context.Context, path string, body []byte) ([]byte
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+		return nil, classifySendError("send request", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("agents-memory returned %d", resp.StatusCode)
+		return nil, classifyStatus("agents-memory request", resp.StatusCode)
 	}
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 	return respBytes, nil
+}
+
+func (c *HTTPClient) postJSON(ctx context.Context, path string, request any, response any) error {
+	requestBytes, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("encode request: %w", err)
+	}
+	responseBytes, err := c.post(ctx, path, requestBytes)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(responseBytes, response); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+	return nil
 }
 
 func getenvDefault(name string, fallback string) string {

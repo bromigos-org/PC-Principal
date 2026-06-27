@@ -143,11 +143,7 @@ func TestLiveMessageHandler_Ingest_skips_bot_messages_and_replies(t *testing.T) 
 
 func runSessionAndMessage(t *testing.T, content string) (*discordgo.Session, *discordgo.MessageCreate) {
 	t.Helper()
-	s, err := discordgo.New("Bot test")
-	if err != nil {
-		t.Fatalf("new discord session: %v", err)
-	}
-	s.State.User = &discordgo.User{ID: "bot-1", Username: "PC Principal", Bot: true}
+	s := runSession(t)
 	message := &discordgo.MessageCreate{Message: &discordgo.Message{
 		ID:        "message-1",
 		ChannelID: "channel-1",
@@ -158,6 +154,16 @@ func runSessionAndMessage(t *testing.T, content string) (*discordgo.Session, *di
 		Member:    &discordgo.Member{Roles: nil},
 	}}
 	return s, message
+}
+
+func runSession(t *testing.T) *discordgo.Session {
+	t.Helper()
+	s, err := discordgo.New("Bot test")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	s.State.User = &discordgo.User{ID: "bot-1", Username: "PC Principal", Bot: true}
+	return s
 }
 
 type runDiscordRecorder struct {

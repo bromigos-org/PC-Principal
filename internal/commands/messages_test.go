@@ -65,6 +65,24 @@ func TestBotMention_preserves_registered_command_precedence_for_hey(t *testing.T
 	}
 }
 
+func TestBotMention_preserves_allowed_role_gate_for_commands(t *testing.T) {
+	// Given
+	previousAllowedRoles := allowedRoles
+	allowedRoles = map[string]struct{}{"role-allowed": {}}
+	t.Cleanup(func() { allowedRoles = previousAllowedRoles })
+	recorder := &discordMessageRecorder{}
+	s, m := mentionSessionAndMessage(t, mentionToken("bot-1")+" ping")
+	s.Client = recorder.httpClient(t)
+
+	// When
+	BotMention(s, m)
+
+	// Then
+	if len(recorder.sent) != 0 {
+		t.Fatalf("expected denied role to suppress command replies, got %#v", recorder.sent)
+	}
+}
+
 func mentionSessionAndMessage(t *testing.T, content string) (*discordgo.Session, *discordgo.MessageCreate) {
 	t.Helper()
 	s, err := discordgo.New("Bot test")

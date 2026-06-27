@@ -3,14 +3,9 @@ package backfill
 import (
 	"context"
 	"errors"
-	"net/http"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
-
-	"github.com/bromigos-org/pc-principal/internal/memory"
 	"github.com/bwmarrin/discordgo"
+	"net/http"
+	"testing"
 )
 
 func TestWorker_Run_ingests_paginated_messages_and_advances_cursor_after_success(t *testing.T) {
@@ -149,6 +144,51 @@ func TestWorker_Run_resumes_from_saved_cursor_and_honors_channel_limit(t *testin
 	}
 }
 
+func TestBackfillResumesAfterPartialFailure(t *testing.T) {
+	// Given
+	cursors := newFakeCursorStore()
+	firstDiscord := newFakeDiscordClient()
+	firstDiscord.guilds = []*discordgo.UserGuild{{ID: "guild-1"}}
+	firstDiscord.channels["guild-1"] = []*discordgo.Channel{{ID: "channel-1", GuildID: "guild-1", Type: discordgo.ChannelTypeGuildText}}
+	firstDiscord.messages["channel-1"] = [][]*discordgo.Message{{message("m-2"), message("m-1")}}
+	worker := NewWorker(WorkerDeps{Discord: firstDiscord, Memory: &fakeMemoryClient{err: errors.New("memory unavailable")}, Cursors: cursors}, Config{Enabled: true, TenantID: "tenant-1", AgentID: "agent-1", MaxChannelsPerRun: 1, MaxMessagesPerChannel: 10, MemoryBatchSize: 10, MaxAttempts: 1})
+
+	// When
+	_, err := worker.Run(context.Background())
+
+	// Then
+	if err == nil {
+		t.Fatal("expected memory ingest failure")
+	}
+	if got := cursors.values[CursorKey{GuildID: "guild-1", ChannelID: "channel-1"}]; got != "" {
+		t.Fatalf("expected cursor to stay unchanged after failed ingest, got %q", got)
+	}
+
+	// Given
+	secondDiscord := newFakeDiscordClient()
+	secondDiscord.guilds = []*discordgo.UserGuild{{ID: "guild-1"}}
+	secondDiscord.channels["guild-1"] = []*discordgo.Channel{{ID: "channel-1", GuildID: "guild-1", Type: discordgo.ChannelTypeGuildText}}
+	secondDiscord.messages["channel-1"] = [][]*discordgo.Message{{message("m-2"), message("m-1")}}
+	resumeWorker := NewWorker(WorkerDeps{Discord: secondDiscord, Memory: &fakeMemoryClient{}, Cursors: cursors}, Config{Enabled: true, TenantID: "tenant-1", AgentID: "agent-1", MaxChannelsPerRun: 1, MaxMessagesPerChannel: 10, MemoryBatchSize: 10, MaxAttempts: 1})
+
+	// When
+	resumeSummary, err := resumeWorker.Run(context.Background())
+
+	// Then
+	if err != nil {
+		t.Fatalf("resume backfill: %v", err)
+	}
+	if resumeSummary.MessagesIngested != 2 {
+		t.Fatalf("expected resumed run to ingest the original page, got %#v", resumeSummary)
+	}
+	if got := cursors.values[CursorKey{GuildID: "guild-1", ChannelID: "channel-1"}]; got != "m-1" {
+		t.Fatalf("expected cursor to advance only after successful ingest, got %q", got)
+	}
+	if len(secondDiscord.messageCalls) == 0 || secondDiscord.messageCalls[0].beforeID != "" {
+		t.Fatalf("expected resumed run to start from the original cursor, got %#v", secondDiscord.messageCalls)
+	}
+}
+
 func TestWorker_Run_fetches_text_channels_and_active_threads_only(t *testing.T) {
 	// Given
 	discord := newFakeDiscordClient()
@@ -189,100 +229,4 @@ func TestDefaultConfig_is_disabled_and_bounded(t *testing.T) {
 	if config.MaxChannelsPerRun <= 0 || config.MaxMessagesPerChannel <= 0 || config.MemoryBatchSize <= 0 || config.RequestDelay < 0 || config.Backoff <= 0 {
 		t.Fatalf("expected bounded positive defaults, got %#v", config)
 	}
-}
-
-type fakeDiscordClient struct {
-	guilds       []*discordgo.UserGuild
-	channels     map[string][]*discordgo.Channel
-	threads      map[string][]*discordgo.Channel
-	messages     map[string][][]*discordgo.Message
-	messageErrs  map[string]error
-	messageCalls []messageCall
-	sent         []string
-}
-
-type messageCall struct {
-	channelID string
-	limit     int
-	beforeID  string
-}
-
-func newFakeDiscordClient() *fakeDiscordClient {
-	return &fakeDiscordClient{channels: map[string][]*discordgo.Channel{}, threads: map[string][]*discordgo.Channel{}, messages: map[string][][]*discordgo.Message{}, messageErrs: map[string]error{}}
-}
-
-func (c *fakeDiscordClient) UserGuilds(ctx context.Context, limit int, beforeID string) ([]*discordgo.UserGuild, error) {
-	return c.guilds, nil
-}
-
-func (c *fakeDiscordClient) GuildChannels(ctx context.Context, guildID string) ([]*discordgo.Channel, error) {
-	return c.channels[guildID], nil
-}
-
-func (c *fakeDiscordClient) GuildThreadsActive(ctx context.Context, guildID string) ([]*discordgo.Channel, error) {
-	return c.threads[guildID], nil
-}
-
-func (c *fakeDiscordClient) ChannelMessages(ctx context.Context, channelID string, limit int, beforeID string) ([]*discordgo.Message, error) {
-	c.messageCalls = append(c.messageCalls, messageCall{channelID: channelID, limit: limit, beforeID: beforeID})
-	if err := c.messageErrs[channelID]; err != nil {
-		return nil, err
-	}
-	pages := c.messages[channelID]
-	if len(pages) == 0 {
-		return nil, nil
-	}
-	c.messages[channelID] = pages[1:]
-	return pages[0], nil
-}
-
-type fakeMemoryClient struct {
-	err     error
-	batches [][]memory.ClientEvent
-}
-
-func (c *fakeMemoryClient) IngestEvents(ctx context.Context, events []memory.ClientEvent) (memory.ClientEventBatchResponse, error) {
-	c.batches = append(c.batches, append([]memory.ClientEvent(nil), events...))
-	return memory.ClientEventBatchResponse{}, c.err
-}
-
-type fakeCursorStore struct {
-	values map[CursorKey]string
-}
-
-func newFakeCursorStore() *fakeCursorStore {
-	return &fakeCursorStore{values: map[CursorKey]string{}}
-}
-
-func (s *fakeCursorStore) Get(ctx context.Context, key CursorKey) (string, error) {
-	return s.values[key], nil
-}
-
-func (s *fakeCursorStore) Save(ctx context.Context, key CursorKey, beforeID string) error {
-	s.values[key] = beforeID
-	return nil
-}
-
-func message(id string) *discordgo.Message {
-	return messageInChannel("channel-1", id)
-}
-
-func messageInChannel(channelID string, id string) *discordgo.Message {
-	return &discordgo.Message{ID: id, ChannelID: channelID, GuildID: "guild-1", Content: "hello " + id, Timestamp: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC), Author: &discordgo.User{ID: "user-1", Username: "Alex"}}
-}
-
-func messages(count int, newest int) []*discordgo.Message {
-	result := make([]*discordgo.Message, 0, count)
-	for id := newest; id > newest-count; id-- {
-		result = append(result, message("m-"+strconv.Itoa(id)))
-	}
-	return result
-}
-
-func calledChannels(calls []messageCall) string {
-	ids := make([]string, 0, len(calls))
-	for _, call := range calls {
-		ids = append(ids, call.channelID)
-	}
-	return strings.Join(ids, ",")
 }

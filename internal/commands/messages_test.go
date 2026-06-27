@@ -32,7 +32,7 @@ func TestCommandLookupCaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestBotMention_preserves_registered_command_precedence_for_ping(t *testing.T) {
+func TestBotMentionCommandPrecedenceStillWins(t *testing.T) {
 	// Given
 	recorder := &discordMessageRecorder{}
 	s, m := mentionSessionAndMessage(t, mentionToken("bot-1")+" ping")
@@ -47,6 +47,22 @@ func TestBotMention_preserves_registered_command_precedence_for_ping(t *testing.
 	}
 	if recorder.sent[0].Content != "Pong!" {
 		t.Fatalf("expected ping command to win over conversation fallback, got %q", recorder.sent[0].Content)
+	}
+}
+
+func TestNonMentionMessageIngestsWithoutReply(t *testing.T) {
+	// Given
+	recorder := &discordMessageRecorder{}
+	s, m := mentionSessionAndMessage(t, "quiet channel chatter")
+	m.Mentions = nil
+	s.Client = recorder.httpClient(t)
+
+	// When
+	BotMention(s, m)
+
+	// Then
+	if len(recorder.sent) != 0 {
+		t.Fatalf("expected non-mention message to stay silent, got %#v", recorder.sent)
 	}
 }
 

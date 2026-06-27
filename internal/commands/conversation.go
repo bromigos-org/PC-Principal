@@ -22,6 +22,7 @@ const (
 	shortTermSystemPrefix   = "Recent Dragonfly conversation history:\n"
 	memorySystemPrefix      = "Relevant long-term recall:\n"
 	graphSystemPrefix       = "Relevant Discord graph facts:\n"
+	skillSystemPrefix       = "Reviewed non-executable skills:\n"
 )
 
 var (
@@ -95,7 +96,14 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 	if err != nil {
 		log.Printf("agents-memory graph context recall failed: %v", err)
 	}
-	reply, err := generateAssistant(ctx, historyWithMemoryContext(history, recalledContext, graphContext.Context))
+	skills, err := conversationMemory.ListSkills(ctx, memory.SkillListRequest{
+		TenantID: scope.TenantID,
+		AgentID:  scope.AgentID,
+	})
+	if err != nil {
+		log.Printf("agents-memory skill list failed: %v", err)
+	}
+	reply, err := generateAssistant(ctx, historyWithMemoryContext(history, recalledContext, graphContext.Context, skills.Skills))
 	if err != nil {
 		return fmt.Errorf("call LiteLLM: %w", err)
 	}
@@ -115,8 +123,8 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 	return nil
 }
 
-func historyWithMemoryContext(history []store.Message, recalledContext string, graphContext string) []store.Message {
-	contextMessages := memoryContextMessages(history, recalledContext, graphContext)
+func historyWithMemoryContext(history []store.Message, recalledContext string, graphContext string, skills []memory.SkillRecord) []store.Message {
+	contextMessages := memoryContextMessages(history, recalledContext, graphContext, skills)
 	if len(contextMessages) == 0 {
 		return history
 	}
@@ -132,8 +140,8 @@ func historyWithMemoryContext(history []store.Message, recalledContext string, g
 	return requestHistory
 }
 
-func memoryContextMessages(history []store.Message, recalledContext string, graphContext string) []store.Message {
-	contextMessages := make([]store.Message, 0, 3)
+func memoryContextMessages(history []store.Message, recalledContext string, graphContext string, skills []memory.SkillRecord) []store.Message {
+	contextMessages := make([]store.Message, 0, 4)
 	if shortTerm := shortTermHistoryContext(history); shortTerm != "" {
 		contextMessages = append(contextMessages, store.Message{Role: "system", Content: shortTermSystemPrefix + shortTerm})
 	}
@@ -143,7 +151,26 @@ func memoryContextMessages(history []store.Message, recalledContext string, grap
 	if graph := strings.TrimSpace(graphContext); graph != "" {
 		contextMessages = append(contextMessages, store.Message{Role: "system", Content: graphSystemPrefix + graph})
 	}
+	if skillContext := skillPromptContext(skills); skillContext != "" {
+		contextMessages = append(contextMessages, store.Message{Role: "system", Content: skillSystemPrefix + skillContext})
+	}
 	return contextMessages
+}
+
+func skillPromptContext(skills []memory.SkillRecord) string {
+	parts := make([]string, 0, len(skills))
+	for _, skill := range skills {
+		if skill.Status != memory.SkillStatusApproved || skill.Metadata["reviewed"] != true {
+			continue
+		}
+		name := strings.TrimSpace(skill.Name)
+		description := strings.TrimSpace(skill.Description)
+		if name == "" || description == "" {
+			continue
+		}
+		parts = append(parts, name+": "+description)
+	}
+	return strings.Join(parts, "\n")
 }
 
 func shortTermHistoryContext(history []store.Message) string {

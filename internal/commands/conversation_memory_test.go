@@ -25,9 +25,12 @@ type fakeMemoryClient struct {
 	contextErr  error
 	graphText   string
 	graphErr    error
+	skills      []memory.SkillRecord
+	skillsErr   error
 	writeErr    error
 	queries     []memory.ContextQuery
 	graphCalls  []memory.GraphContextRequest
+	skillCalls  []memory.SkillListRequest
 	messages    []memory.Message
 }
 
@@ -55,7 +58,8 @@ func (c *fakeMemoryClient) IngestEvents(ctx context.Context, events []memory.Cli
 }
 
 func (c *fakeMemoryClient) ListSkills(ctx context.Context, request memory.SkillListRequest) (memory.SkillListResponse, error) {
-	return memory.SkillListResponse{}, nil
+	c.skillCalls = append(c.skillCalls, request)
+	return memory.SkillListResponse{Skills: c.skills}, c.skillsErr
 }
 
 func (c *fakeMemoryClient) ProposeSkill(ctx context.Context, proposal memory.SkillProposal) (memory.SkillProposal, error) {

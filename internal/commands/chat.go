@@ -39,14 +39,16 @@ func Chat(s *discordgo.Session, m *discordgo.MessageCreate) {
 		{Role: "user", Content: fmt.Sprintf("[%s]: %s", who, topic)},
 	}
 
-	reply, err := callLiteLLM(history)
+	reply, err := generateAssistant(context.Background(), history)
 	if err != nil {
 		fmt.Printf("chat: LiteLLM error: %v\n", err)
 		s.ChannelMessageSend(thread.ID, "LiteLLM is NOT responding. I am livid. Check the logs.")
 		return
 	}
 
-	s.ChannelMessageSend(thread.ID, reply)
+	if err := sendDiscordResponse(s, thread.ID, reply); err != nil {
+		fmt.Printf("chat: send error: %v\n", err)
+	}
 
 	history = append(history, store.Message{Role: "assistant", Content: reply})
 	if err := store.Save(context.Background(), thread.ID, history); err != nil {

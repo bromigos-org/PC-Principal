@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/bromigos-org/pc-principal/internal/commands"
+	"github.com/bromigos-org/pc-principal/internal/memory"
 	"github.com/bromigos-org/pc-principal/internal/store"
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
@@ -19,8 +20,11 @@ func Init() {
 		store.Init(addr)
 		log.Printf("Connected to DragonflyDB at %s", addr)
 	} else {
-		log.Println("Warning: DRAGONFLY_ADDR not set — hey threads will not persist")
+		log.Println("Warning: DRAGONFLY_ADDR not set — PC Principal thread and channel memory will not persist")
 	}
+	memoryConfig := memory.LoadConfigFromEnv()
+	commands.ConfigureMemoryTenant(memoryConfig.TenantID)
+	commands.ConfigureMemory(memory.NewClient(memoryConfig, nil))
 
 	token := os.Getenv("DISCORD_BOT_TOKEN")
 	if token == "" {

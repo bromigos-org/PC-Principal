@@ -34,12 +34,18 @@ func key(threadID string) string { return "conversation:" + threadID }
 
 // Exists reports whether a conversation is tracked for the given thread.
 func Exists(ctx context.Context, threadID string) (bool, error) {
+	if client == nil {
+		return false, nil
+	}
 	n, err := client.Exists(ctx, key(threadID)).Result()
 	return n > 0, err
 }
 
 // Get loads the full message history for a thread. Returns nil if not found.
 func Get(ctx context.Context, threadID string) ([]Message, error) {
+	if client == nil {
+		return nil, nil
+	}
 	val, err := client.Get(ctx, key(threadID)).Result()
 	if err == redis.Nil {
 		return nil, nil
@@ -54,6 +60,9 @@ func Get(ctx context.Context, threadID string) ([]Message, error) {
 // Save persists history and resets the TTL. The system prompt at index 0 is
 // always preserved; older messages beyond maxHistory are dropped.
 func Save(ctx context.Context, threadID string, msgs []Message) error {
+	if client == nil {
+		return nil
+	}
 	if len(msgs) > maxHistory+1 {
 		msgs = append(msgs[:1], msgs[len(msgs)-maxHistory:]...)
 	}

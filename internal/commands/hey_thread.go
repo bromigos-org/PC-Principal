@@ -11,7 +11,7 @@ import (
 // HeyThreadHandler continues a PC Principal conversation inside a tracked thread.
 // Every message in a thread seeded by the hey command gets a response.
 func HeyThreadHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if m.Author.ID == s.State.User.ID {
+	if m.Author == nil || m.Author.ID == s.State.User.ID || m.Author.Bot {
 		return
 	}
 
@@ -39,7 +39,7 @@ func HeyThreadHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 	who := memberContext(s, m)
 	history = append(history, store.Message{Role: "user", Content: fmt.Sprintf("[%s]: %s", who, m.Content)})
 
-	reply, err := callLiteLLM(history)
+	reply, err := generateAssistant(ctx, history)
 	if err != nil {
 		fmt.Printf("hey_thread: LiteLLM error: %v\n", err)
 		s.ChannelMessageSend(m.ChannelID, "LiteLLM is DOWN right now. I am VERY upset. Someone fix the infrastructure.")
@@ -52,5 +52,7 @@ func HeyThreadHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		fmt.Printf("hey_thread: save error: %v\n", err)
 	}
 
-	s.ChannelMessageSend(m.ChannelID, reply)
+	if err := sendDiscordResponse(s, m.ChannelID, reply); err != nil {
+		fmt.Printf("hey_thread: send error: %v\n", err)
+	}
 }

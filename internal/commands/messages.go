@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -13,7 +14,7 @@ func init() {
 }
 
 func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if m.Author.ID == s.State.User.ID {
+	if m.Author == nil || m.Author.ID == s.State.User.ID || m.Author.Bot {
 		return
 	}
 
@@ -27,6 +28,10 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	parts := strings.Fields(m.Content)
 	if len(parts) < 2 {
+		if err := handleMentionConversation(s, m); err != nil {
+			fmt.Printf("mention: conversation error: %v\n", err)
+			s.ChannelMessageSend(m.ChannelID, "Bro, LiteLLM is not cooperating right now. Totally unacceptable.")
+		}
 		return
 	}
 
@@ -37,6 +42,11 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 			cmd.Handler(s, m)
 			return
 		}
+	}
+
+	if err := handleMentionConversation(s, m); err != nil {
+		fmt.Printf("mention: conversation error: %v\n", err)
+		s.ChannelMessageSend(m.ChannelID, "Bro, LiteLLM is not cooperating right now. Totally unacceptable.")
 	}
 }
 

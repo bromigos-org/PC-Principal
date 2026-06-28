@@ -181,6 +181,43 @@ func TestLiveMemberUpdateHandler_ingests_user_metadata_and_role_assignment_facts
 	}
 }
 
+func TestLiveMemberUpdateHandler_ingests_current_roles_and_delta_facts_when_roles_change(t *testing.T) {
+	// Given
+	memoryClient := &fakeLiveMemoryClient{}
+	configureLiveMessageIngestion(memoryClient, "tenant-1")
+	t.Cleanup(func() { configureLiveMessageIngestion(memory.NewClient(memory.Config{}, nil), "bromigos") })
+	s, err := discordgo.New("Bot test")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	user, roles := &discordgo.User{ID: "user-1", Username: "Alex", Bot: true}, []string{"role-keep", "role-new"}
+	member := &discordgo.Member{GuildID: "guild-1", User: user, Roles: roles}
+	before := &discordgo.Member{GuildID: "guild-1", User: user, Roles: []string{"role-old", "role-keep"}}
+
+	// When
+	liveMemberUpdateHandler(s, &discordgo.GuildMemberUpdate{Member: member, BeforeUpdate: before})
+
+	// Then
+	if len(memoryClient.events) != 4 {
+		t.Fatalf("expected member, user, assigned, and unassigned events, got %d: %#v", len(memoryClient.events), memoryClient.events)
+	}
+	memberEvent, userEvent := eventByType(memoryClient.events, memory.EventTypeMemberUpdated), eventByType(memoryClient.events, memory.EventTypeUserDiscovered)
+	gotRoles, ok := memberEvent.Payload["roles"].([]string)
+	if !ok || len(gotRoles) != 2 || gotRoles[0] != "role-keep" || gotRoles[1] != "role-new" || memberEvent.Payload["is_bot"] != true || memberEvent.Payload["user_type"] != "bot" {
+		t.Fatalf("expected member update to include current roles and bot identity metadata, got %#v", memberEvent.Payload)
+	}
+	if userEvent.Subject.Type != "bot" || userEvent.Payload["is_bot"] != true || userEvent.Payload["user_type"] != "bot" {
+		t.Fatalf("expected user_discovered to include bot identity metadata, got %#v", userEvent)
+	}
+	assigned, unassigned := eventByType(memoryClient.events, memory.EventTypeMemberRoleAssigned), eventByType(memoryClient.events, memory.EventTypeMemberRoleUnassigned)
+	if assigned.Payload["role_id"] != "role-new" || assigned.Payload["user_id"] != "user-1" {
+		t.Fatalf("expected role-new assignment fact, got %#v", assigned)
+	}
+	if unassigned.Payload["role_id"] != "role-old" || unassigned.Payload["user_id"] != "user-1" {
+		t.Fatalf("expected role-old unassignment fact, got %#v", unassigned)
+	}
+}
+
 func countEvents(events []memory.ClientEvent, eventType memory.EventType) int {
 	count := 0
 	for _, event := range events {

@@ -136,6 +136,10 @@ func applyPreviousChannelPayload(payload memory.JsonObject, before *discordgo.Ch
 
 func (n Normalizer) normalizeMember(member *discordgo.Member) memory.ClientEvent {
 	actor := actorForUser(member.User)
+	userType := "user"
+	if actor.IsBot {
+		userType = "bot"
+	}
 	return n.clientEvent(
 		memory.EventTypeMemberUpdated,
 		n.config.ObservedAt,
@@ -144,6 +148,8 @@ func (n Normalizer) normalizeMember(member *discordgo.Member) memory.ClientEvent
 		memory.JsonObject{
 			"guild_id":  member.GuildID,
 			"user_id":   actor.ID,
+			"is_bot":    actor.IsBot,
+			"user_type": userType,
 			"nickname":  member.Nick,
 			"roles":     append([]string(nil), member.Roles...),
 			"pending":   member.Pending,

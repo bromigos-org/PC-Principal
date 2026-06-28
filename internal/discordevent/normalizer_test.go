@@ -37,8 +37,8 @@ func TestNormalizeMessageCreateStableEvent(t *testing.T) {
 	backfillEvents := backfill.NormalizeMessageCreate(message)
 
 	// Then
-	if len(liveEvents) != 3 || len(backfillEvents) != 3 {
-		t.Fatalf("expected message, attachment, and link events, got live=%d backfill=%d", len(liveEvents), len(backfillEvents))
+	if len(liveEvents) != 4 || len(backfillEvents) != 3 {
+		t.Fatalf("expected live user/message/attachment/link and backfill message/attachment/link events, got live=%d backfill=%d", len(liveEvents), len(backfillEvents))
 	}
 	if liveEvents[0].EventID != backfillEvents[0].EventID || liveEvents[0].IdempotencyKey != backfillEvents[0].IdempotencyKey {
 		t.Fatalf("expected stable message identity, got live=%#v backfill=%#v", liveEvents[0], backfillEvents[0])
@@ -103,8 +103,8 @@ func TestNormalizeMessageCreateLinkSanitizationStripsQueryAndFragment(t *testing
 	events := normalizer.NormalizeMessageCreate(message)
 
 	// Then
-	if len(events) != 2 {
-		t.Fatalf("expected message and link events, got %d", len(events))
+	if len(events) != 3 {
+		t.Fatalf("expected message, link, and user metadata events, got %d", len(events))
 	}
 	if events[1].Payload["url"] != "https://example.com/path" {
 		t.Fatalf("expected sanitized link metadata, got %#v", events[1].Payload)
@@ -156,6 +156,23 @@ func TestNormalizeChannelAndThreadParentCategoryMapping(t *testing.T) {
 	}
 }
 
+func TestNormalizeCategoryChannelGroupPayload(t *testing.T) {
+	// Given
+	category := &discordgo.Channel{ID: "category-1", GuildID: "guild-1", Name: "Projects", Type: discordgo.ChannelTypeGuildCategory}
+	normalizer := New(Config{TenantID: "bromigos", AgentID: "pc-principal", SourceMarker: SourceMarkerBackfill, ObservedAt: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)})
+
+	// When
+	event := normalizer.NormalizeChannelCreate(category)[0]
+
+	// Then
+	if event.Subject.Type != "category" || event.Scope.Visibility != memory.VisibilityGuild {
+		t.Fatalf("expected category as guild-scoped channel group, got %#v", event)
+	}
+	if event.Payload["category_id"] != "category-1" || event.Payload["category_name"] != "Projects" || event.Payload["group_type"] != "category" {
+		t.Fatalf("expected category/channel-group payload fields, got %#v", event.Payload)
+	}
+}
+
 func TestNormalizeReactionAddAndRemoveIncludeEmojiMetadata(t *testing.T) {
 	// Given
 	normalizer := New(Config{TenantID: "bromigos", AgentID: "pc-principal", SourceMarker: SourceMarkerLive, ObservedAt: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)})
@@ -198,4 +215,66 @@ func TestNormalizeRoleAndMemberEventsCaptureGuildTopology(t *testing.T) {
 	if memberEvent.Payload["user_id"] != "user-1" || memberEvent.Payload["nickname"] != "Blackflame" {
 		t.Fatalf("expected member metadata, got %#v", memberEvent.Payload)
 	}
+}
+
+func TestNormalizeUserAndBotMetadataFromMessageAndMember(t *testing.T) {
+	// Given
+	normalizer := New(Config{TenantID: "bromigos", AgentID: "pc-principal", SourceMarker: SourceMarkerLive, ObservedAt: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)})
+	botUser := &discordgo.User{ID: "bot-1", Username: "pc", GlobalName: "PC Principal", Bot: true}
+	message := &discordgo.Message{ID: "message-1", ChannelID: "channel-1", GuildID: "guild-1", Content: "hello", Timestamp: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC), Author: botUser}
+	member := &discordgo.Member{GuildID: "guild-1", User: botUser}
+
+	// When
+	messageEvents := normalizer.NormalizeMessageCreate(message)
+	memberEvents := normalizer.NormalizeMemberUpdate(member)
+
+	// Then
+	if !hasDiscordEventType(messageEvents, memory.EventTypeUserDiscovered) || !hasDiscordEventType(memberEvents, memory.EventTypeUserDiscovered) {
+		t.Fatalf("expected message and member normalization to emit user metadata, got message=%#v member=%#v", eventTypesOf(messageEvents), eventTypesOf(memberEvents))
+	}
+	userEvent := eventOfType(memberEvents, memory.EventTypeUserDiscovered)
+	if userEvent.Subject.Type != "bot" || userEvent.Payload["is_bot"] != true || userEvent.Payload["user_type"] != "bot" || userEvent.Payload["display_name"] != "PC Principal" {
+		t.Fatalf("expected bot/user metadata payload, got %#v", userEvent)
+	}
+}
+
+func TestNormalizeMemberRoleAssignmentsEmitExplicitFacts(t *testing.T) {
+	// Given
+	normalizer := New(Config{TenantID: "bromigos", AgentID: "pc-principal", SourceMarker: SourceMarkerLive, ObservedAt: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)})
+	member := &discordgo.Member{GuildID: "guild-1", User: &discordgo.User{ID: "user-1", Username: "Alex"}, Roles: []string{"role-1", "role-2"}}
+	before := &discordgo.Member{GuildID: "guild-1", User: member.User, Roles: []string{"role-2", "role-3"}}
+
+	// When
+	events := normalizer.NormalizeMemberUpdateWithPrevious(member, before)
+
+	// Then
+	assigned := eventOfType(events, memory.EventTypeMemberRoleAssigned)
+	unassigned := eventOfType(events, memory.EventTypeMemberRoleUnassigned)
+	if assigned.Payload["role_id"] != "role-1" || assigned.Payload["user_id"] != "user-1" || assigned.Subject.Type != "member_role_assignment" {
+		t.Fatalf("expected explicit role assignment fact, got %#v", assigned)
+	}
+	if unassigned.Payload["role_id"] != "role-3" || unassigned.Payload["user_id"] != "user-1" {
+		t.Fatalf("expected explicit role unassignment fact, got %#v", unassigned)
+	}
+}
+
+func hasDiscordEventType(events []memory.ClientEvent, eventType memory.EventType) bool {
+	return eventOfType(events, eventType).EventType == eventType
+}
+
+func eventOfType(events []memory.ClientEvent, eventType memory.EventType) memory.ClientEvent {
+	for _, event := range events {
+		if event.EventType == eventType {
+			return event
+		}
+	}
+	return memory.ClientEvent{}
+}
+
+func eventTypesOf(events []memory.ClientEvent) []memory.EventType {
+	result := make([]memory.EventType, 0, len(events))
+	for _, event := range events {
+		result = append(result, event.EventType)
+	}
+	return result
 }

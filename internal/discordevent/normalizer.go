@@ -78,6 +78,9 @@ func (n Normalizer) NormalizeMessageCreate(message *discordgo.Message) []memory.
 	for _, link := range extractLinks(content) {
 		events = append(events, n.normalizeLink(message, link, scope, occurredAt))
 	}
+	if message.Author != nil && n.config.SourceMarker == SourceMarkerLive {
+		events = append(events, n.normalizeUser(message.GuildID, message.Author))
+	}
 	return events
 }
 
@@ -163,11 +166,13 @@ func (n Normalizer) normalizeRole(eventType memory.EventType, guildID string, ro
 }
 
 func (n Normalizer) NormalizeMemberUpdate(member *discordgo.Member) []memory.ClientEvent {
-	return []memory.ClientEvent{n.normalizeMember(member)}
+	return n.normalizeMemberEvents(member, nil)
 }
 
 func (n Normalizer) NormalizeMemberUpdateWithPrevious(member *discordgo.Member, before *discordgo.Member) []memory.ClientEvent {
-	event := n.normalizeMember(member)
-	applyPreviousMemberPayload(event.Payload, before)
-	return []memory.ClientEvent{event}
+	events := n.normalizeMemberEvents(member, before)
+	if len(events) > 0 {
+		applyPreviousMemberPayload(events[0].Payload, before)
+	}
+	return events
 }

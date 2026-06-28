@@ -66,8 +66,8 @@ func TestLiveMessageHandler_Ingests_non_mention_without_discord_reply(t *testing
 	liveMessageHandler(s, message)
 
 	// Then
-	if len(memoryClient.events) != 1 {
-		t.Fatalf("expected one message event, got %d", len(memoryClient.events))
+	if len(memoryClient.events) != 2 {
+		t.Fatalf("expected message and user metadata events, got %d", len(memoryClient.events))
 	}
 	if memoryClient.events[0].EventType != memory.EventTypeMessageCreated || memoryClient.events[0].TenantID != "tenant-1" {
 		t.Fatalf("expected normalized live message event, got %#v", memoryClient.events[0])
@@ -90,8 +90,8 @@ func TestLiveMessageHandler_Ingests_before_mention_command_routing(t *testing.T)
 	liveMessageHandler(s, message)
 
 	// Then
-	if len(memoryClient.events) != 1 {
-		t.Fatalf("expected mention to ingest once before routing, got %d events", len(memoryClient.events))
+	if len(memoryClient.events) != 2 {
+		t.Fatalf("expected mention message and user metadata ingest before routing, got %d events", len(memoryClient.events))
 	}
 	if len(recorder.sent) != 1 || recorder.sent[0].Content != "Pong!" {
 		t.Fatalf("expected ping command to win over conversation fallback, got %#v", recorder.sent)
@@ -111,8 +111,8 @@ func TestLiveMessageHandler_Command_routing_continues_when_ingest_fails(t *testi
 	liveMessageHandler(s, message)
 
 	// Then
-	if len(memoryClient.events) != 1 {
-		t.Fatalf("expected failed ingest attempt to record one event, got %d", len(memoryClient.events))
+	if len(memoryClient.events) != 2 {
+		t.Fatalf("expected failed ingest attempt to record message and user metadata events, got %d", len(memoryClient.events))
 	}
 	if len(recorder.sent) != 1 || recorder.sent[0].Content != "Pong!" {
 		t.Fatalf("expected Discord command reply despite memory error, got %#v", recorder.sent)

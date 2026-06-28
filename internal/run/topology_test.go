@@ -2,6 +2,7 @@ package run
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -84,14 +85,15 @@ func TestLiveRoleAndMemberHandlers_ingest_updates_nonfatally(t *testing.T) {
 	liveMemberUpdateHandler(s, &discordgo.GuildMemberUpdate{Member: member, BeforeUpdate: &discordgo.Member{GuildID: "guild-1", User: member.User, Roles: nil, Nick: "BF"}})
 
 	// Then
-	if len(memoryClient.events) != 2 {
-		t.Fatalf("expected role and member ingest attempts despite errors, got %d", len(memoryClient.events))
+	if len(memoryClient.events) != 4 {
+		t.Fatalf("expected role, member, user, and assignment ingest attempts despite errors, got %d", len(memoryClient.events))
 	}
 	if memoryClient.events[0].EventType != memory.EventTypeRoleUpdated || memoryClient.events[0].Payload["previous_name"] != "Members" {
 		t.Fatalf("expected role update payload, got %#v", memoryClient.events[0])
 	}
-	if memoryClient.events[1].EventType != memory.EventTypeMemberUpdated || memoryClient.events[1].Payload["previous_nickname"] != "BF" {
-		t.Fatalf("expected member update payload, got %#v", memoryClient.events[1])
+	memberEvent := eventByType(memoryClient.events, memory.EventTypeMemberUpdated)
+	if memberEvent.Payload["previous_nickname"] != "BF" {
+		t.Fatalf("expected member update payload, got %#v", memberEvent)
 	}
 }
 
@@ -115,10 +117,92 @@ func TestIngestStartupSnapshot_enumerates_topology_under_caps(t *testing.T) {
 	ingestStartupSnapshot(s, &discordgo.Ready{Guilds: []*discordgo.Guild{{ID: guild.ID}}})
 
 	// Then
-	if len(memoryClient.events) != 4 {
-		t.Fatalf("expected channel, thread, role, and member snapshot events, got %d: %#v", len(memoryClient.events), memoryClient.events)
+	if len(memoryClient.events) != 6 {
+		t.Fatalf("expected channel, thread, role, member, user, and assignment snapshot events, got %d: %#v", len(memoryClient.events), memoryClient.events)
 	}
 	if memoryClient.events[0].Payload["source_marker"] != "backfill" {
 		t.Fatalf("expected snapshot backfill marker, got %#v", memoryClient.events[0].Payload)
 	}
+}
+
+func TestIngestStartupSnapshot_enumerates_full_topology_without_default_member_or_event_caps(t *testing.T) {
+	// Given
+	memoryClient := &fakeLiveMemoryClient{}
+	configureLiveMessageIngestion(memoryClient, "tenant-1")
+	t.Cleanup(func() { configureLiveMessageIngestion(memory.NewClient(memory.Config{}, nil), "bromigos") })
+	s, err := discordgo.New("Bot test")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	role := &discordgo.Role{ID: "role-1", Name: "Member"}
+	members := make([]*discordgo.Member, 0, 101)
+	for id := 0; id < 101; id++ {
+		members = append(members, &discordgo.Member{GuildID: "guild-1", User: &discordgo.User{ID: "user-" + strconv.Itoa(id), Username: "member"}, Roles: []string{role.ID}})
+	}
+	guild := &discordgo.Guild{ID: "guild-1", Channels: []*discordgo.Channel{{ID: "category-1", GuildID: "guild-1", Name: "Projects", Type: discordgo.ChannelTypeGuildCategory}, {ID: "channel-1", GuildID: "guild-1", Name: "general", ParentID: "category-1", Type: discordgo.ChannelTypeGuildText}}, Roles: []*discordgo.Role{role}, Members: members}
+	if err := s.State.GuildAdd(guild); err != nil {
+		t.Fatalf("seed state guild: %v", err)
+	}
+
+	// When
+	ingestStartupSnapshot(s, &discordgo.Ready{Guilds: []*discordgo.Guild{{ID: guild.ID}}})
+
+	// Then
+	if countEvents(memoryClient.events, memory.EventTypeMemberUpdated) != 101 {
+		t.Fatalf("expected all startup members to be ingested, got %d events total=%d", countEvents(memoryClient.events, memory.EventTypeMemberUpdated), len(memoryClient.events))
+	}
+	if !containsRunEvent(memoryClient.events, memory.EventTypeUserDiscovered) || !containsRunEvent(memoryClient.events, memory.EventTypeMemberRoleAssigned) {
+		t.Fatalf("expected startup snapshot user and role-assignment topology facts, got %#v", runEventTypes(memoryClient.events))
+	}
+}
+
+func TestLiveMemberUpdateHandler_ingests_user_metadata_and_role_assignment_facts(t *testing.T) {
+	// Given
+	memoryClient := &fakeLiveMemoryClient{}
+	configureLiveMessageIngestion(memoryClient, "tenant-1")
+	t.Cleanup(func() { configureLiveMessageIngestion(memory.NewClient(memory.Config{}, nil), "bromigos") })
+	s, err := discordgo.New("Bot test")
+	if err != nil {
+		t.Fatalf("new discord session: %v", err)
+	}
+	member := &discordgo.Member{GuildID: "guild-1", User: &discordgo.User{ID: "user-1", Username: "Alex", Bot: false}, Roles: []string{"role-1"}}
+
+	// When
+	liveMemberUpdateHandler(s, &discordgo.GuildMemberUpdate{Member: member, BeforeUpdate: &discordgo.Member{GuildID: "guild-1", User: member.User, Roles: nil}})
+
+	// Then
+	if !containsRunEvent(memoryClient.events, memory.EventTypeUserDiscovered) || !containsRunEvent(memoryClient.events, memory.EventTypeMemberRoleAssigned) {
+		t.Fatalf("expected member update to ingest user metadata and role assignment facts, got %#v", runEventTypes(memoryClient.events))
+	}
+}
+
+func countEvents(events []memory.ClientEvent, eventType memory.EventType) int {
+	count := 0
+	for _, event := range events {
+		if event.EventType == eventType {
+			count++
+		}
+	}
+	return count
+}
+
+func containsRunEvent(events []memory.ClientEvent, eventType memory.EventType) bool {
+	return countEvents(events, eventType) > 0
+}
+
+func runEventTypes(events []memory.ClientEvent) []memory.EventType {
+	result := make([]memory.EventType, 0, len(events))
+	for _, event := range events {
+		result = append(result, event.EventType)
+	}
+	return result
+}
+
+func eventByType(events []memory.ClientEvent, eventType memory.EventType) memory.ClientEvent {
+	for _, event := range events {
+		if event.EventType == eventType {
+			return event
+		}
+	}
+	return memory.ClientEvent{}
 }

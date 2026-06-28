@@ -14,6 +14,8 @@ type fakeDiscordClient struct {
 	guilds       []*discordgo.UserGuild
 	channels     map[string][]*discordgo.Channel
 	threads      map[string][]*discordgo.Channel
+	roles        map[string][]*discordgo.Role
+	members      map[string][][]*discordgo.Member
 	messages     map[string][][]*discordgo.Message
 	messageErrs  map[string]error
 	messageCalls []messageCall
@@ -27,7 +29,7 @@ type messageCall struct {
 }
 
 func newFakeDiscordClient() *fakeDiscordClient {
-	return &fakeDiscordClient{channels: map[string][]*discordgo.Channel{}, threads: map[string][]*discordgo.Channel{}, messages: map[string][][]*discordgo.Message{}, messageErrs: map[string]error{}}
+	return &fakeDiscordClient{channels: map[string][]*discordgo.Channel{}, threads: map[string][]*discordgo.Channel{}, roles: map[string][]*discordgo.Role{}, members: map[string][][]*discordgo.Member{}, messages: map[string][][]*discordgo.Message{}, messageErrs: map[string]error{}}
 }
 
 func (c *fakeDiscordClient) UserGuilds(ctx context.Context, limit int, beforeID string) ([]*discordgo.UserGuild, error) {
@@ -40,6 +42,19 @@ func (c *fakeDiscordClient) GuildChannels(ctx context.Context, guildID string) (
 
 func (c *fakeDiscordClient) GuildThreadsActive(ctx context.Context, guildID string) ([]*discordgo.Channel, error) {
 	return c.threads[guildID], nil
+}
+
+func (c *fakeDiscordClient) GuildRoles(ctx context.Context, guildID string) ([]*discordgo.Role, error) {
+	return c.roles[guildID], nil
+}
+
+func (c *fakeDiscordClient) GuildMembers(ctx context.Context, guildID string, afterID string, limit int) ([]*discordgo.Member, error) {
+	pages := c.members[guildID]
+	if len(pages) == 0 {
+		return nil, nil
+	}
+	c.members[guildID] = pages[1:]
+	return pages[0], nil
 }
 
 func (c *fakeDiscordClient) ChannelMessages(ctx context.Context, channelID string, limit int, beforeID string) ([]*discordgo.Message, error) {
@@ -63,6 +78,14 @@ type fakeMemoryClient struct {
 func (c *fakeMemoryClient) IngestEvents(ctx context.Context, events []memory.ClientEvent) (memory.ClientEventBatchResponse, error) {
 	c.batches = append(c.batches, append([]memory.ClientEvent(nil), events...))
 	return memory.ClientEventBatchResponse{}, c.err
+}
+
+func (c *fakeMemoryClient) events() []memory.ClientEvent {
+	var result []memory.ClientEvent
+	for _, batch := range c.batches {
+		result = append(result, batch...)
+	}
+	return result
 }
 
 type fakeCursorStore struct {
@@ -91,9 +114,13 @@ func messageInChannel(channelID string, id string) *discordgo.Message {
 }
 
 func messages(count int, newest int) []*discordgo.Message {
+	return messagesInChannel("channel-1", count, newest)
+}
+
+func messagesInChannel(channelID string, count int, newest int) []*discordgo.Message {
 	result := make([]*discordgo.Message, 0, count)
 	for id := newest; id > newest-count; id-- {
-		result = append(result, message("m-"+strconv.Itoa(id)))
+		result = append(result, messageInChannel(channelID, "m-"+strconv.Itoa(id)))
 	}
 	return result
 }

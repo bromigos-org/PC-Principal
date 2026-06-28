@@ -44,17 +44,20 @@ func (w Worker) Run(ctx context.Context) (Summary, error) {
 	if !w.config.Enabled {
 		return summary, nil
 	}
-	guilds, err := w.deps.Discord.UserGuilds(ctx, w.config.MaxChannelsPerRun, "")
+	guilds, err := w.deps.Discord.UserGuilds(ctx, guildPageLimit(w.config.MaxChannelsPerRun), "")
 	if err != nil {
 		return summary, fmt.Errorf("list discord guilds: %w", err)
 	}
 	for _, guild := range guilds {
-		channels, err := w.visibleChannels(ctx, guild.ID)
+		channels, threads, err := w.guildTopology(ctx, guild.ID)
 		if err != nil {
 			return summary, err
 		}
-		for _, channel := range channels {
-			if summary.ChannelsVisited >= w.config.MaxChannelsPerRun {
+		if err := w.ingestGuildTopology(ctx, guild.ID, channels, threads); err != nil {
+			return summary, err
+		}
+		for _, channel := range textHistoryChannels(append(channels, threads...)) {
+			if w.reachedChannelLimit(summary.ChannelsVisited) {
 				return summary, nil
 			}
 			visited, skipped, ingested, err := w.backfillChannel(ctx, channel)
@@ -69,18 +72,6 @@ func (w Worker) Run(ctx context.Context) (Summary, error) {
 	return summary, nil
 }
 
-func (w Worker) visibleChannels(ctx context.Context, guildID string) ([]*discordgo.Channel, error) {
-	channels, err := w.deps.Discord.GuildChannels(ctx, guildID)
-	if err != nil {
-		return nil, fmt.Errorf("list guild %s channels: %w", guildID, err)
-	}
-	threads, err := w.deps.Discord.GuildThreadsActive(ctx, guildID)
-	if err != nil {
-		return nil, fmt.Errorf("list guild %s active threads: %w", guildID, err)
-	}
-	return textHistoryChannels(append(channels, threads...)), nil
-}
-
 func (w Worker) backfillChannel(ctx context.Context, channel *discordgo.Channel) (int, int, int, error) {
 	key := CursorKey{GuildID: channel.GuildID, ChannelID: channel.ID}
 	beforeID, err := w.deps.Cursors.Get(ctx, key)
@@ -89,8 +80,8 @@ func (w Worker) backfillChannel(ctx context.Context, channel *discordgo.Channel)
 	}
 	fetched := 0
 	ingested := 0
-	for fetched < w.config.MaxMessagesPerChannel {
-		limit := pageLimit(w.config.MaxMessagesPerChannel - fetched)
+	for !w.reachedMessageLimit(fetched) {
+		limit := pageLimit(w.remainingMessageLimit(fetched))
 		messages, err := w.fetchMessages(ctx, channel.ID, limit, beforeID)
 		if isPermissionDenied(err) {
 			return 0, 1, ingested, nil
@@ -137,6 +128,13 @@ func (w Worker) ingestMessages(ctx context.Context, messages []*discordgo.Messag
 	for _, message := range messages {
 		events = append(events, normalizer.NormalizeMessageCreate(message)...)
 	}
+	return w.ingestEvents(ctx, events)
+}
+
+func (w Worker) ingestEvents(ctx context.Context, events []memory.ClientEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
 	for start := 0; start < len(events); start += w.config.MemoryBatchSize {
 		end := min(start+w.config.MemoryBatchSize, len(events))
 		batch := events[start:end]
@@ -148,6 +146,21 @@ func (w Worker) ingestMessages(ctx context.Context, messages []*discordgo.Messag
 		}
 	}
 	return nil
+}
+
+func (w Worker) reachedChannelLimit(visited int) bool {
+	return w.config.MaxChannelsPerRun > 0 && visited >= w.config.MaxChannelsPerRun
+}
+
+func (w Worker) reachedMessageLimit(fetched int) bool {
+	return w.config.MaxMessagesPerChannel > 0 && fetched >= w.config.MaxMessagesPerChannel
+}
+
+func (w Worker) remainingMessageLimit(fetched int) int {
+	if w.config.MaxMessagesPerChannel == 0 {
+		return discordPageLimit
+	}
+	return w.config.MaxMessagesPerChannel - fetched
 }
 
 func (w Worker) withRetry(ctx context.Context, operation func() error) error {
@@ -178,31 +191,19 @@ func (w Worker) wait(ctx context.Context, delay time.Duration) error {
 	}
 }
 
-func textHistoryChannels(channels []*discordgo.Channel) []*discordgo.Channel {
-	result := make([]*discordgo.Channel, 0, len(channels))
-	for _, channel := range channels {
-		if supportsHistory(channel) {
-			result = append(result, channel)
-		}
-	}
-	return result
-}
-
-func supportsHistory(channel *discordgo.Channel) bool {
-	if channel == nil {
-		return false
-	}
-	switch channel.Type {
-	case discordgo.ChannelTypeGuildText, discordgo.ChannelTypeGuildNews, discordgo.ChannelTypeGuildPublicThread, discordgo.ChannelTypeGuildPrivateThread, discordgo.ChannelTypeGuildNewsThread:
-		return true
-	default:
-		return false
-	}
-}
-
 func pageLimit(remaining int) int {
+	if remaining <= 0 {
+		return discordPageLimit
+	}
 	if remaining < discordPageLimit {
 		return remaining
+	}
+	return discordPageLimit
+}
+
+func guildPageLimit(maxChannels int) int {
+	if maxChannels > 0 && maxChannels < discordPageLimit {
+		return maxChannels
 	}
 	return discordPageLimit
 }

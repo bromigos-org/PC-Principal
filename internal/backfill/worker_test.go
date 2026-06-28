@@ -3,9 +3,11 @@ package backfill
 import (
 	"context"
 	"errors"
-	"github.com/bwmarrin/discordgo"
 	"net/http"
 	"testing"
+
+	"github.com/bromigos-org/pc-principal/internal/memory"
+	"github.com/bwmarrin/discordgo"
 )
 
 func TestWorker_Run_ingests_paginated_messages_and_advances_cursor_after_success(t *testing.T) {
@@ -34,14 +36,14 @@ func TestWorker_Run_ingests_paginated_messages_and_advances_cursor_after_success
 	if got := cursors.values[CursorKey{GuildID: "guild-1", ChannelID: "channel-1"}]; got != "m-1" {
 		t.Fatalf("expected cursor to oldest ingested message m-1, got %q", got)
 	}
-	if len(memoryClient.batches) != 3 {
-		t.Fatalf("expected bounded batches of 50, 50, then 1, got %d", len(memoryClient.batches))
+	if len(memoryClient.batches) != 4 {
+		t.Fatalf("expected topology batch plus bounded message batches of 50, 50, then 1, got %d", len(memoryClient.batches))
 	}
 	if discord.messageCalls[1].beforeID != "m-2" {
 		t.Fatalf("expected second page before oldest fetched message m-2, got %q", discord.messageCalls[1].beforeID)
 	}
-	if marker, ok := memoryClient.batches[0][0].Payload["source_marker"].(string); !ok || marker != "backfill" {
-		t.Fatalf("expected backfill source marker, got %#v", memoryClient.batches[0][0].Payload)
+	if marker, ok := memoryClient.batches[1][0].Payload["source_marker"].(string); !ok || marker != "backfill" {
+		t.Fatalf("expected backfill source marker, got %#v", memoryClient.batches[1][0].Payload)
 	}
 }
 
@@ -61,8 +63,8 @@ func TestWorker_Run_ingests_backfill_without_discord_reply_surface(t *testing.T)
 	if err != nil {
 		t.Fatalf("run backfill: %v", err)
 	}
-	if summary.MessagesIngested != 1 || len(memoryClient.batches) != 1 {
-		t.Fatalf("expected backfill to ingest exactly one message, got summary=%#v batches=%d", summary, len(memoryClient.batches))
+	if summary.MessagesIngested != 1 || len(memoryClient.batches) != 2 {
+		t.Fatalf("expected topology and message ingest without reply surface, got summary=%#v batches=%d", summary, len(memoryClient.batches))
 	}
 	if len(discord.sent) != 0 {
 		t.Fatalf("expected backfill to avoid Discord reply sends, got %#v", discord.sent)
@@ -218,15 +220,80 @@ func TestWorker_Run_fetches_text_channels_and_active_threads_only(t *testing.T) 
 	}
 }
 
-func TestDefaultConfig_is_disabled_and_bounded(t *testing.T) {
+func TestWorker_Run_traverses_all_channels_and_messages_when_limits_are_zero(t *testing.T) {
+	// Given
+	discord := newFakeDiscordClient()
+	discord.guilds = []*discordgo.UserGuild{{ID: "guild-1"}}
+	discord.channels["guild-1"] = []*discordgo.Channel{
+		{ID: "channel-1", GuildID: "guild-1", Type: discordgo.ChannelTypeGuildText},
+		{ID: "channel-2", GuildID: "guild-1", Type: discordgo.ChannelTypeGuildText},
+		{ID: "channel-3", GuildID: "guild-1", Type: discordgo.ChannelTypeGuildText},
+	}
+	discord.messages["channel-1"] = [][]*discordgo.Message{messagesInChannel("channel-1", 100, 300), messagesInChannel("channel-1", 100, 200), messagesInChannel("channel-1", 100, 100), {messageInChannel("channel-1", "m-0")}}
+	discord.messages["channel-2"] = [][]*discordgo.Message{{messageInChannel("channel-2", "m-1")}}
+	discord.messages["channel-3"] = [][]*discordgo.Message{{messageInChannel("channel-3", "m-1")}}
+	worker := NewWorker(WorkerDeps{Discord: discord, Memory: &fakeMemoryClient{}, Cursors: newFakeCursorStore()}, Config{Enabled: true, TenantID: "tenant-1", AgentID: "agent-1", MaxChannelsPerRun: 0, MaxMessagesPerChannel: 0, MemoryBatchSize: 75})
+
 	// When
-	config := DefaultConfig()
+	summary, err := worker.Run(context.Background())
 
 	// Then
-	if config.Enabled {
-		t.Fatal("expected backfill disabled by default")
+	if err != nil {
+		t.Fatalf("run backfill: %v", err)
 	}
-	if config.MaxChannelsPerRun <= 0 || config.MaxMessagesPerChannel <= 0 || config.MemoryBatchSize <= 0 || config.RequestDelay < 0 || config.Backoff <= 0 {
-		t.Fatalf("expected bounded positive defaults, got %#v", config)
+	if summary.ChannelsVisited != 3 || summary.MessagesIngested != 303 {
+		t.Fatalf("expected unlimited run to visit all channels and messages, got %#v", summary)
 	}
+	for _, call := range discord.messageCalls {
+		if call.limit > discordPageLimit {
+			t.Fatalf("expected Discord page limit <= %d, got %#v", discordPageLimit, discord.messageCalls)
+		}
+	}
+}
+
+func TestWorker_Run_emits_guild_topology_before_history_when_discord_data_available(t *testing.T) {
+	// Given
+	discord := newFakeDiscordClient()
+	discord.guilds = []*discordgo.UserGuild{{ID: "guild-1"}}
+	category := &discordgo.Channel{ID: "category-1", GuildID: "guild-1", Name: "Projects", Type: discordgo.ChannelTypeGuildCategory}
+	channel := &discordgo.Channel{ID: "channel-1", GuildID: "guild-1", Name: "general", ParentID: category.ID, Type: discordgo.ChannelTypeGuildText}
+	role := &discordgo.Role{ID: "role-1", Name: "Admins"}
+	member := &discordgo.Member{GuildID: "guild-1", User: &discordgo.User{ID: "user-1", Username: "Alex", Bot: true}, Roles: []string{role.ID}}
+	discord.channels["guild-1"] = []*discordgo.Channel{category, channel}
+	discord.roles["guild-1"] = []*discordgo.Role{role}
+	discord.members["guild-1"] = [][]*discordgo.Member{{member}}
+	discord.messages["channel-1"] = [][]*discordgo.Message{{messageInChannel("channel-1", "m-1")}}
+	memoryClient := &fakeMemoryClient{}
+	worker := NewWorker(WorkerDeps{Discord: discord, Memory: memoryClient, Cursors: newFakeCursorStore()}, Config{Enabled: true, TenantID: "tenant-1", AgentID: "agent-1", MaxChannelsPerRun: 0, MaxMessagesPerChannel: 1, MemoryBatchSize: 10})
+
+	// When
+	summary, err := worker.Run(context.Background())
+
+	// Then
+	if err != nil {
+		t.Fatalf("run backfill: %v", err)
+	}
+	if summary.ChannelsVisited != 1 || summary.MessagesIngested != 1 {
+		t.Fatalf("expected history channel plus topology ingest, got %#v", summary)
+	}
+	if !hasEventType(memoryClient.events(), memory.EventTypeChannelCreated) || !hasEventType(memoryClient.events(), memory.EventTypeRoleCreated) || !hasEventType(memoryClient.events(), memory.EventTypeMemberUpdated) || !hasEventType(memoryClient.events(), memory.EventTypeUserDiscovered) || !hasEventType(memoryClient.events(), memory.EventTypeMemberRoleAssigned) {
+		t.Fatalf("expected channel, role, member, user, and assignment topology events, got %#v", eventTypes(memoryClient.events()))
+	}
+}
+
+func hasEventType(events []memory.ClientEvent, eventType memory.EventType) bool {
+	for _, event := range events {
+		if event.EventType == eventType {
+			return true
+		}
+	}
+	return false
+}
+
+func eventTypes(events []memory.ClientEvent) []memory.EventType {
+	result := make([]memory.EventType, 0, len(events))
+	for _, event := range events {
+		result = append(result, event.EventType)
+	}
+	return result
 }

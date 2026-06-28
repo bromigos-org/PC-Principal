@@ -10,6 +10,8 @@ type DiscordClient interface {
 	UserGuilds(ctx context.Context, limit int, beforeID string) ([]*discordgo.UserGuild, error)
 	GuildChannels(ctx context.Context, guildID string) ([]*discordgo.Channel, error)
 	GuildThreadsActive(ctx context.Context, guildID string) ([]*discordgo.Channel, error)
+	GuildRoles(ctx context.Context, guildID string) ([]*discordgo.Role, error)
+	GuildMembers(ctx context.Context, guildID string, afterID string, limit int) ([]*discordgo.Member, error)
 	ChannelMessages(ctx context.Context, channelID string, limit int, beforeID string) ([]*discordgo.Message, error)
 }
 
@@ -31,6 +33,14 @@ func (c SessionClient) GuildThreadsActive(ctx context.Context, guildID string) (
 		return nil, err
 	}
 	return threads.Threads, nil
+}
+
+func (c SessionClient) GuildRoles(ctx context.Context, guildID string) ([]*discordgo.Role, error) {
+	return c.Session.GuildRoles(guildID, discordgo.WithContext(ctx))
+}
+
+func (c SessionClient) GuildMembers(ctx context.Context, guildID string, afterID string, limit int) ([]*discordgo.Member, error) {
+	return c.Session.GuildMembers(guildID, afterID, limit, discordgo.WithContext(ctx))
 }
 
 func (c SessionClient) ChannelMessages(ctx context.Context, channelID string, limit int, beforeID string) ([]*discordgo.Message, error) {

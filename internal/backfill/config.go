@@ -66,10 +66,10 @@ func (c Config) withDefaults() Config {
 	if c.AgentID == "" {
 		c.AgentID = defaults.AgentID
 	}
-	if c.MaxChannelsPerRun <= 0 {
+	if c.MaxChannelsPerRun < 0 {
 		c.MaxChannelsPerRun = defaults.MaxChannelsPerRun
 	}
-	if c.MaxMessagesPerChannel <= 0 {
+	if c.MaxMessagesPerChannel < 0 {
 		c.MaxMessagesPerChannel = defaults.MaxMessagesPerChannel
 	}
 	if c.MemoryBatchSize <= 0 {
@@ -98,7 +98,7 @@ func envInt(name string, fallback int) int {
 		return fallback
 	}
 	parsed, err := strconv.Atoi(value)
-	if err != nil || parsed <= 0 {
+	if err != nil || parsed < 0 {
 		return fallback
 	}
 	return parsed

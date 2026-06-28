@@ -173,6 +173,32 @@ func TestNormalizeCategoryChannelGroupPayload(t *testing.T) {
 	}
 }
 
+func TestNormalizeTopologyEventsSatisfyAgentsMemoryRequiredFields(t *testing.T) {
+	// Given
+	normalizer := New(Config{TenantID: "bromigos", AgentID: "pc-principal", SourceMarker: SourceMarkerBackfill, ObservedAt: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)})
+	role := &discordgo.Role{ID: "role-1", Name: "Admin"}
+	category := &discordgo.Channel{ID: "category-1", GuildID: "guild-1", Name: "Projects", Type: discordgo.ChannelTypeGuildCategory}
+	channel := &discordgo.Channel{ID: "channel-1", GuildID: "guild-1", Name: "general", ParentID: category.ID, Type: discordgo.ChannelTypeGuildText}
+	member := &discordgo.Member{GuildID: "guild-1", User: &discordgo.User{ID: "user-1", Username: "Alex"}, Roles: []string{role.ID}}
+
+	// When
+	events := []memory.ClientEvent{}
+	events = append(events, normalizer.NormalizeChannelCreate(category)...)
+	events = append(events, normalizer.NormalizeChannelCreate(channel)...)
+	events = append(events, normalizer.NormalizeRoleCreate("guild-1", role)...)
+	events = append(events, normalizer.NormalizeMemberUpdate(member)...)
+
+	// Then
+	for _, event := range events {
+		if event.Actor.ID == "" {
+			t.Fatalf("expected topology event actor id for agents-memory validation, got %#v", event)
+		}
+		if event.Scope.TenantID == "" || event.Scope.AgentID == "" || event.Scope.SessionID == "" || event.Scope.UserID == "" || event.Scope.SpaceID == "" {
+			t.Fatalf("expected complete topology scope for agents-memory validation, got %#v", event)
+		}
+	}
+}
+
 func TestNormalizeReactionAddAndRemoveIncludeEmojiMetadata(t *testing.T) {
 	// Given
 	normalizer := New(Config{TenantID: "bromigos", AgentID: "pc-principal", SourceMarker: SourceMarkerLive, ObservedAt: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)})

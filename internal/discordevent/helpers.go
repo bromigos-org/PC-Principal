@@ -11,6 +11,8 @@ import (
 )
 
 func (n Normalizer) clientEvent(eventType memory.EventType, occurredAt time.Time, actor memory.ClientEventActor, subject memory.ClientEventSubject, payload memory.JsonObject, discord memory.DiscordEventContext, scope memory.Scope) memory.ClientEvent {
+	actor = completeActor(actor)
+	scope = n.completeScope(scope, actor, discord)
 	return memory.ClientEvent{
 		TenantID:       n.config.TenantID,
 		SourceClient:   memory.SourceClientDiscord,
@@ -26,6 +28,51 @@ func (n Normalizer) clientEvent(eventType memory.EventType, occurredAt time.Time
 		Payload:        payload,
 		Discord:        discord,
 	}
+}
+
+func completeActor(actor memory.ClientEventActor) memory.ClientEventActor {
+	if actor.ID != "" {
+		return actor
+	}
+	return memory.ClientEventActor{ID: "discord", DisplayName: "Discord", IsBot: true}
+}
+
+func (n Normalizer) completeScope(scope memory.Scope, actor memory.ClientEventActor, discord memory.DiscordEventContext) memory.Scope {
+	if scope.TenantID == "" {
+		scope.TenantID = n.config.TenantID
+	}
+	if scope.AgentID == "" {
+		scope.AgentID = n.config.AgentID
+	}
+	if scope.UserID == "" {
+		scope.UserID = actor.ID
+	}
+	if scope.SessionID == "" {
+		scope.SessionID = sessionID(scope, discord)
+	}
+	return scope
+}
+
+func sessionID(scope memory.Scope, discord memory.DiscordEventContext) string {
+	if scope.ChannelID != "" {
+		if scope.GuildID == "" {
+			return "dm:" + scope.ChannelID
+		}
+		return "guild:" + scope.GuildID + ":channel:" + scope.ChannelID
+	}
+	if discord.ChannelID != "" {
+		if discord.GuildID == "" {
+			return "dm:" + discord.ChannelID
+		}
+		return "guild:" + discord.GuildID + ":channel:" + discord.ChannelID
+	}
+	if scope.GuildID != "" {
+		return "guild:" + scope.GuildID
+	}
+	if discord.GuildID != "" {
+		return "guild:" + discord.GuildID
+	}
+	return "agent:" + scope.AgentID
 }
 
 func eventID(eventType memory.EventType, subjectID string) string {

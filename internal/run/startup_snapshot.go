@@ -1,24 +1,28 @@
 package run
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/bromigos-org/pc-principal/internal/discordevent"
 	"github.com/bromigos-org/pc-principal/internal/memory"
 	"github.com/bwmarrin/discordgo"
 )
 
+const startupSnapshotPageLimit = 100
+
 func ingestStartupSnapshot(s *discordgo.Session, event *discordgo.Ready) {
 	if s == nil || event == nil {
 		return
 	}
-	normalizer := liveNormalizer(s, discordevent.SourceMarkerBackfill)
 	for _, readyGuild := range event.Guilds {
 		guild, err := startupGuild(s, readyGuild)
 		if err != nil {
 			log.Printf("agents-memory startup snapshot guild %s unavailable: %v", readyGuild.ID, err)
 			continue
 		}
+		normalizer := discordevent.New(discordevent.Config{TenantID: liveMemoryTenantID, AgentID: pcPrincipalAgentID, SourceMarker: discordevent.SourceMarkerBackfill, ObservedAt: time.Now().UTC(), Snapshot: discordevent.Snapshot{Channels: startupChannelMap(guild)}})
 		ingestGuildSnapshot(normalizer, guild)
 	}
 }
@@ -27,10 +31,58 @@ func startupGuild(s *discordgo.Session, readyGuild *discordgo.Guild) (*discordgo
 	if readyGuild == nil {
 		return nil, discordgo.ErrStateNotFound
 	}
-	if len(readyGuild.Channels) > 0 || len(readyGuild.Threads) > 0 || len(readyGuild.Roles) > 0 || len(readyGuild.Members) > 0 {
-		return readyGuild, nil
+	channels, err := s.GuildChannels(readyGuild.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list guild %s channels: %w", readyGuild.ID, err)
 	}
-	return s.State.Guild(readyGuild.ID)
+	threads, err := s.GuildThreadsActive(readyGuild.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list guild %s active threads: %w", readyGuild.ID, err)
+	}
+	roles, err := s.GuildRoles(readyGuild.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list guild %s roles: %w", readyGuild.ID, err)
+	}
+	members, err := startupGuildMembers(s, readyGuild.ID)
+	if err != nil {
+		return nil, err
+	}
+	guild := *readyGuild
+	guild.Channels = channels
+	guild.Threads = threads.Threads
+	guild.Roles = roles
+	guild.Members = members
+	return &guild, nil
+}
+
+func startupGuildMembers(s *discordgo.Session, guildID string) ([]*discordgo.Member, error) {
+	var result []*discordgo.Member
+	afterID := ""
+	for {
+		members, err := s.GuildMembers(guildID, afterID, startupSnapshotPageLimit)
+		if err != nil {
+			return nil, fmt.Errorf("list guild %s members: %w", guildID, err)
+		}
+		if len(members) == 0 {
+			return result, nil
+		}
+		result = append(result, members...)
+		afterID = members[len(members)-1].User.ID
+		if len(members) < startupSnapshotPageLimit {
+			return result, nil
+		}
+	}
+}
+
+func startupChannelMap(guild *discordgo.Guild) map[string]*discordgo.Channel {
+	channels := make(map[string]*discordgo.Channel, len(guild.Channels)+len(guild.Threads))
+	for _, channel := range guild.Channels {
+		channels[channel.ID] = channel
+	}
+	for _, thread := range guild.Threads {
+		channels[thread.ID] = thread
+	}
+	return channels
 }
 
 func ingestGuildSnapshot(normalizer discordevent.Normalizer, guild *discordgo.Guild) {

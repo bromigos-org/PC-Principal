@@ -2,7 +2,10 @@ package run
 
 import (
 	"errors"
+	"io"
+	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -109,6 +112,7 @@ func TestIngestStartupSnapshot_enumerates_topology_under_caps(t *testing.T) {
 	role := &discordgo.Role{ID: "role-1", Name: "Member"}
 	member := &discordgo.Member{GuildID: "guild-1", User: &discordgo.User{ID: "user-1", Username: "blackflame"}, Roles: []string{role.ID}, JoinedAt: time.Date(2026, 6, 27, 0, 0, 0, 0, time.UTC)}
 	guild := &discordgo.Guild{ID: "guild-1", Channels: []*discordgo.Channel{{ID: "channel-1", GuildID: "guild-1", Name: "general", Type: discordgo.ChannelTypeGuildText}}, Threads: []*discordgo.Channel{{ID: "thread-1", GuildID: "guild-1", Name: "thread", ParentID: "channel-1", Type: discordgo.ChannelTypeGuildPublicThread}}, Roles: []*discordgo.Role{role}, Members: []*discordgo.Member{member}}
+	s.Client = topologySnapshotRESTClient(t, guild)
 	if err := s.State.GuildAdd(guild); err != nil {
 		t.Fatalf("seed state guild: %v", err)
 	}
@@ -140,6 +144,7 @@ func TestIngestStartupSnapshot_enumerates_full_topology_without_default_member_o
 		members = append(members, &discordgo.Member{GuildID: "guild-1", User: &discordgo.User{ID: "user-" + strconv.Itoa(id), Username: "member"}, Roles: []string{role.ID}})
 	}
 	guild := &discordgo.Guild{ID: "guild-1", Channels: []*discordgo.Channel{{ID: "category-1", GuildID: "guild-1", Name: "Projects", Type: discordgo.ChannelTypeGuildCategory}, {ID: "channel-1", GuildID: "guild-1", Name: "general", ParentID: "category-1", Type: discordgo.ChannelTypeGuildText}}, Roles: []*discordgo.Role{role}, Members: members}
+	s.Client = topologySnapshotRESTClient(t, guild)
 	if err := s.State.GuildAdd(guild); err != nil {
 		t.Fatalf("seed state guild: %v", err)
 	}
@@ -205,4 +210,54 @@ func eventByType(events []memory.ClientEvent, eventType memory.EventType) memory
 		}
 	}
 	return memory.ClientEvent{}
+}
+
+func topologySnapshotRESTClient(t *testing.T, guild *discordgo.Guild) *http.Client {
+	t.Helper()
+	return &http.Client{Transport: runRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("unexpected Discord REST method %s %s", req.Method, req.URL.String())
+		}
+		body := topologySnapshotRESTBody(t, guild, req.URL.Path, req.URL.Query().Get("after"))
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}, nil
+	})}
+}
+
+func topologySnapshotRESTBody(t *testing.T, guild *discordgo.Guild, path string, afterID string) string {
+	t.Helper()
+	switch path {
+	case "/api/v9/guilds/guild-1/channels":
+		return encodeJSON(t, guild.Channels)
+	case "/api/v9/guilds/guild-1/threads/active":
+		return encodeJSON(t, discordgo.ThreadsList{Threads: guild.Threads})
+	case "/api/v9/guilds/guild-1/roles":
+		return encodeJSON(t, guild.Roles)
+	case "/api/v9/guilds/guild-1/members":
+		return encodeJSON(t, topologySnapshotMemberPage(t, guild.Members, afterID))
+	default:
+		t.Fatalf("unexpected Discord REST path %s", path)
+		return "null"
+	}
+}
+
+func topologySnapshotMemberPage(t *testing.T, members []*discordgo.Member, afterID string) []*discordgo.Member {
+	t.Helper()
+	start := 0
+	if afterID != "" {
+		start = -1
+		for index, member := range members {
+			if member.User.ID == afterID {
+				start = index + 1
+				break
+			}
+		}
+		if start == -1 {
+			t.Fatalf("unexpected members page after=%s", afterID)
+		}
+	}
+	end := start + startupSnapshotPageLimit
+	if end > len(members) {
+		end = len(members)
+	}
+	return members[start:end]
 }

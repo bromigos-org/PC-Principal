@@ -16,6 +16,7 @@ import (
 type fakeLiveMemoryClient struct {
 	ingestErr error
 	events    []memory.ClientEvent
+	batches   [][]memory.ClientEvent
 }
 
 func (c *fakeLiveMemoryClient) GetContext(ctx context.Context, query memory.ContextQuery) (string, error) {
@@ -32,6 +33,7 @@ func (c *fakeLiveMemoryClient) IngestEvent(ctx context.Context, event memory.Cli
 }
 
 func (c *fakeLiveMemoryClient) IngestEvents(ctx context.Context, events []memory.ClientEvent) (memory.ClientEventBatchResponse, error) {
+	c.batches = append(c.batches, append([]memory.ClientEvent(nil), events...))
 	c.events = append(c.events, events...)
 	return memory.ClientEventBatchResponse{}, c.ingestErr
 }

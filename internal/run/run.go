@@ -18,7 +18,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const pcPrincipalAgentID = "pc-principal"
+const (
+	pcPrincipalAgentID       = "pc-principal"
+	liveMemoryEventBatchSize = 100
+)
 
 var (
 	liveMemory         memory.Client = memory.NewClient(memory.Config{}, nil)
@@ -232,8 +235,14 @@ func ingestLiveTopology(label string, events []memory.ClientEvent) {
 	if len(events) == 0 {
 		return
 	}
-	if _, err := liveMemory.IngestEvents(context.Background(), events); err != nil {
-		log.Printf("agents-memory live %s ingest failed: %v", label, err)
+	for start := 0; start < len(events); start += liveMemoryEventBatchSize {
+		end := start + liveMemoryEventBatchSize
+		if end > len(events) {
+			end = len(events)
+		}
+		if _, err := liveMemory.IngestEvents(context.Background(), events[start:end]); err != nil {
+			log.Printf("agents-memory live %s ingest failed: %v", label, err)
+		}
 	}
 }
 

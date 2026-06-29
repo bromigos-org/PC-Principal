@@ -49,7 +49,13 @@ type Client interface {
 	AddMessage(ctx context.Context, message Message) error
 	IngestEvent(ctx context.Context, event ClientEvent) error
 	IngestEvents(ctx context.Context, events []ClientEvent) (ClientEventBatchResponse, error)
+	GetMemoryContext(ctx context.Context, request MemoryContextRequest) (MemoryContextResponse, error)
 	GetGraphContext(ctx context.Context, request GraphContextRequest) (GraphContextResponse, error)
+	StartReasoningTrace(ctx context.Context, request ReasoningTraceStartRequest) (ReasoningTraceStartResponse, error)
+	AddReasoningStep(ctx context.Context, request ReasoningStepRequest) (ReasoningStepResponse, error)
+	RecordReasoningToolCall(ctx context.Context, request ReasoningToolCallRequest) (ReasoningToolCallResponse, error)
+	CompleteReasoningTrace(ctx context.Context, request ReasoningTraceCompleteRequest) (ReasoningTraceCompleteResponse, error)
+	GetReasoningContext(ctx context.Context, request ReasoningContextRequest) (ReasoningContextResponse, error)
 	ListSkills(ctx context.Context, request SkillListRequest) (SkillListResponse, error)
 	ProposeSkill(ctx context.Context, proposal SkillProposal) (SkillProposal, error)
 	RecordSkillUsage(ctx context.Context, usage SkillUsage) error

@@ -106,16 +106,22 @@ func TestClient_Noops_whenDisabled(t *testing.T) {
 	})
 	ingestResponse, ingestErr := client.IngestEvents(context.Background(), []ClientEvent{testClientEvent()})
 	graphResponse, graphErr := client.GetGraphContext(context.Background(), GraphContextRequest{Scope: testScope(), Query: "query"})
+	memoryResponse, memoryErr := client.GetMemoryContext(context.Background(), MemoryContextRequest{Scope: testScope(), Query: "query"})
+	traceResponse, traceErr := client.StartReasoningTrace(context.Background(), testReasoningTraceStartRequest())
+	stepResponse, stepErr := client.AddReasoningStep(context.Background(), testReasoningStepRequest())
+	toolResponse, toolErr := client.RecordReasoningToolCall(context.Background(), testReasoningToolCallRequest())
+	completeResponse, completeErr := client.CompleteReasoningTrace(context.Background(), ReasoningTraceCompleteRequest{TraceID: "trace-1"})
+	reasoningResponse, reasoningErr := client.GetReasoningContext(context.Background(), testReasoningContextRequest())
 	skillsResponse, skillsErr := client.ListSkills(context.Background(), SkillListRequest{TenantID: "bromigos", AgentID: "pc-principal"})
 	proposalResponse, proposalErr := client.ProposeSkill(context.Background(), testSkillProposal())
 	usageErr := client.RecordSkillUsage(context.Background(), testSkillUsage())
 
 	// Then
-	if contextErr != nil || messageErr != nil || ingestErr != nil || graphErr != nil || skillsErr != nil || proposalErr != nil || usageErr != nil {
-		t.Fatalf("expected disabled client to no-op, got contextErr=%v messageErr=%v ingestErr=%v graphErr=%v skillsErr=%v proposalErr=%v usageErr=%v", contextErr, messageErr, ingestErr, graphErr, skillsErr, proposalErr, usageErr)
+	if contextErr != nil || messageErr != nil || ingestErr != nil || graphErr != nil || memoryErr != nil || traceErr != nil || stepErr != nil || toolErr != nil || completeErr != nil || reasoningErr != nil || skillsErr != nil || proposalErr != nil || usageErr != nil {
+		t.Fatalf("expected disabled client to no-op, got contextErr=%v messageErr=%v ingestErr=%v graphErr=%v memoryErr=%v traceErr=%v stepErr=%v toolErr=%v completeErr=%v reasoningErr=%v skillsErr=%v proposalErr=%v usageErr=%v", contextErr, messageErr, ingestErr, graphErr, memoryErr, traceErr, stepErr, toolErr, completeErr, reasoningErr, skillsErr, proposalErr, usageErr)
 	}
-	if contextText != "" || len(ingestResponse.Results) != 0 || graphResponse.Context != "" || len(skillsResponse.Skills) != 0 || proposalResponse.ProposalID != "" {
-		t.Fatalf("expected disabled empty responses, got context=%q ingest=%#v graph=%#v skills=%#v proposal=%#v", contextText, ingestResponse, graphResponse, skillsResponse, proposalResponse)
+	if contextText != "" || len(ingestResponse.Results) != 0 || graphResponse.Context != "" || len(memoryResponse.Sections) != 0 || traceResponse.TraceID != "" || stepResponse.StepID != "" || toolResponse.ToolCallID != "" || completeResponse.TraceID != "" || reasoningResponse.Context != "" || len(skillsResponse.Skills) != 0 || proposalResponse.ProposalID != "" {
+		t.Fatalf("expected disabled empty responses, got context=%q ingest=%#v graph=%#v memory=%#v trace=%#v step=%#v tool=%#v complete=%#v reasoning=%#v skills=%#v proposal=%#v", contextText, ingestResponse, graphResponse, memoryResponse, traceResponse, stepResponse, toolResponse, completeResponse, reasoningResponse, skillsResponse, proposalResponse)
 	}
 }
 

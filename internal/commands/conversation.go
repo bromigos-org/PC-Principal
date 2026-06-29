@@ -22,7 +22,6 @@ const (
 	shortTermSystemPrefix   = "Recent Dragonfly conversation history:\n"
 	memorySystemPrefix      = "Relevant long-term recall:\n"
 	graphSystemPrefix       = "Relevant Discord graph facts:\n"
-	skillSystemPrefix       = "Reviewed non-executable skills:\n"
 )
 
 var (
@@ -79,23 +78,19 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 	history = append(history, store.Message{Role: "user", Content: fmt.Sprintf("[%s]: %s", promptContext, userMessage)})
 
 	scope := conversationMemoryScope(m)
-	recalledContext, err := conversationMemory.GetContext(ctx, memory.ContextQuery{
-		Scope: scope,
-		Query: userMessage,
-		Limit: memoryContextLimit,
-	})
-	if err != nil {
-		log.Printf("agents-memory context recall failed: %v", err)
-	}
-	graphContext, err := conversationMemory.GetGraphContext(ctx, memory.GraphContextRequest{
-		Scope:           scope,
-		Query:           userMessage,
-		Limit:           graphContextLimit,
-		IncludeTopology: true,
-	})
-	if err != nil {
-		log.Printf("agents-memory graph context recall failed: %v", err)
-	}
+	trace := startConversationReasoningTrace(ctx, m, scope)
+	trace.recordStep(ctx, "retrieve_context", "Retrieved scoped memory and reviewed skill context.", memory.JsonObject{"stage": "context"})
+	memoryPrompt := conversationMemoryPrompt(ctx, conversationMemoryPromptRequest{scope: scope, query: userMessage})
+	trace.recordToolCall(ctx, "agents_memory.memory_context", memoryPrompt.traceStatus(), memory.JsonObject{
+		"graph_limit":           graphContextLimit,
+		"include_graph":         true,
+		"include_long_term":     true,
+		"include_reasoning":     true,
+		"include_short_term":    true,
+		"max_items":             memoryContextLimit,
+		"used_legacy_context":   memoryPrompt.usedLegacyContext,
+		"used_short_term_scope": memoryPrompt.hasShortTerm,
+	}, memory.JsonObject{"prompt_empty": strings.TrimSpace(memoryPrompt.prompt) == ""})
 	skills, err := conversationMemory.ListSkills(ctx, memory.SkillListRequest{
 		TenantID: scope.TenantID,
 		AgentID:  scope.AgentID,
@@ -103,89 +98,44 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 	if err != nil {
 		log.Printf("agents-memory skill list failed: %v", err)
 	}
-	reply, err := generateAssistant(ctx, historyWithMemoryContext(history, recalledContext, graphContext.Context, skills.Skills))
+	trace.recordToolCall(ctx, "agents_memory.skills_list", traceStatus(err), memory.JsonObject{"agent_id": scope.AgentID}, memory.JsonObject{"skills_count": len(skills.Skills)})
+	requestHistory := historyWithMemoryContext(history, memoryPrompt, skills.Skills)
+	trace.recordStep(ctx, "prepare_context", "Prepared scoped memory, graph, and reviewed skill context.", memory.JsonObject{
+		"message_count": len(requestHistory),
+		"skills_count":  len(skills.Skills),
+	})
+	reply, err := generateAssistant(ctx, requestHistory)
 	if err != nil {
+		trace.recordToolCall(ctx, "litellm.generate", "error", memory.JsonObject{"message_count": len(requestHistory)}, nil)
+		trace.complete(ctx, "llm_failed", false, memory.JsonObject{"stage": "llm"})
 		return fmt.Errorf("call LiteLLM: %w", err)
 	}
+	trace.recordToolCall(ctx, "litellm.generate", "success", memory.JsonObject{"message_count": len(requestHistory)}, memory.JsonObject{"reply_empty": strings.TrimSpace(reply) == ""})
 	history = append(history, store.Message{Role: "assistant", Content: reply})
 	if err := store.Save(ctx, key, history); err != nil {
+		trace.complete(ctx, "store_failed", false, memory.JsonObject{"stage": "channel_memory"})
 		return fmt.Errorf("save channel memory: %w", err)
 	}
 	if err := sendDiscordResponse(s, m.ChannelID, reply); err != nil {
+		trace.recordToolCall(ctx, "discord.message_send", "error", memory.JsonObject{"channel_id": m.ChannelID}, nil)
+		trace.complete(ctx, "discord_send_failed", false, memory.JsonObject{"stage": "discord"})
 		return fmt.Errorf("send response: %w", err)
 	}
+	trace.recordToolCall(ctx, "discord.message_send", "success", memory.JsonObject{"channel_id": m.ChannelID}, memory.JsonObject{"sent": true})
 	if err := conversationMemory.AddMessage(ctx, memory.Message{Scope: scope, Role: memory.RoleUser, Content: userMessage}); err != nil {
+		trace.recordToolCall(ctx, "agents_memory.message_write.user", "error", memory.JsonObject{"role": string(memory.RoleUser)}, nil)
 		log.Printf("agents-memory user write failed: %v", err)
+	} else {
+		trace.recordToolCall(ctx, "agents_memory.message_write.user", "success", memory.JsonObject{"role": string(memory.RoleUser)}, memory.JsonObject{"stored": true})
 	}
 	if err := conversationMemory.AddMessage(ctx, memory.Message{Scope: scope, Role: memory.RoleAssistant, Content: reply}); err != nil {
+		trace.recordToolCall(ctx, "agents_memory.message_write.assistant", "error", memory.JsonObject{"role": string(memory.RoleAssistant)}, nil)
 		log.Printf("agents-memory assistant write failed: %v", err)
+	} else {
+		trace.recordToolCall(ctx, "agents_memory.message_write.assistant", "success", memory.JsonObject{"role": string(memory.RoleAssistant)}, memory.JsonObject{"stored": true})
 	}
+	trace.complete(ctx, "answered", true, memory.JsonObject{"stage": "complete"})
 	return nil
-}
-
-func historyWithMemoryContext(history []store.Message, recalledContext string, graphContext string, skills []memory.SkillRecord) []store.Message {
-	contextMessages := memoryContextMessages(history, recalledContext, graphContext, skills)
-	if len(contextMessages) == 0 {
-		return history
-	}
-	requestHistory := make([]store.Message, 0, len(history)+len(contextMessages))
-	if len(history) > 0 && history[0].Role == "system" {
-		requestHistory = append(requestHistory, history[0])
-		requestHistory = append(requestHistory, contextMessages...)
-		requestHistory = append(requestHistory, history[1:]...)
-		return requestHistory
-	}
-	requestHistory = append(requestHistory, contextMessages...)
-	requestHistory = append(requestHistory, history...)
-	return requestHistory
-}
-
-func memoryContextMessages(history []store.Message, recalledContext string, graphContext string, skills []memory.SkillRecord) []store.Message {
-	contextMessages := make([]store.Message, 0, 4)
-	if shortTerm := shortTermHistoryContext(history); shortTerm != "" {
-		contextMessages = append(contextMessages, store.Message{Role: "system", Content: shortTermSystemPrefix + shortTerm})
-	}
-	if recalled := strings.TrimSpace(recalledContext); recalled != "" {
-		contextMessages = append(contextMessages, store.Message{Role: "system", Content: memorySystemPrefix + recalled})
-	}
-	if graph := strings.TrimSpace(graphContext); graph != "" {
-		contextMessages = append(contextMessages, store.Message{Role: "system", Content: graphSystemPrefix + graph})
-	}
-	if skillContext := skillPromptContext(skills); skillContext != "" {
-		contextMessages = append(contextMessages, store.Message{Role: "system", Content: skillSystemPrefix + skillContext})
-	}
-	return contextMessages
-}
-
-func skillPromptContext(skills []memory.SkillRecord) string {
-	parts := make([]string, 0, len(skills))
-	for _, skill := range skills {
-		if skill.Status != memory.SkillStatusApproved || skill.Metadata["reviewed"] != true {
-			continue
-		}
-		name := strings.TrimSpace(skill.Name)
-		description := strings.TrimSpace(skill.Description)
-		if name == "" || description == "" {
-			continue
-		}
-		parts = append(parts, name+": "+description)
-	}
-	return strings.Join(parts, "\n")
-}
-
-func shortTermHistoryContext(history []store.Message) string {
-	parts := make([]string, 0, len(history))
-	for _, message := range history {
-		if message.Role == "system" {
-			continue
-		}
-		content := strings.TrimSpace(message.Content)
-		if content == "" {
-			continue
-		}
-		parts = append(parts, message.Role+": "+content)
-	}
-	return strings.Join(parts, "\n")
 }
 
 func mentionConversationText(content string, botID string) (string, bool) {

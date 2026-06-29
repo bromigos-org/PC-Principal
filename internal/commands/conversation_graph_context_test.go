@@ -13,8 +13,10 @@ func TestMentionConversationIncludesScopedGraphContext(t *testing.T) {
 	// Given
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
 	memoryClient := &fakeMemoryClient{
-		contextText: "Long-term recall: blackflame likes homelab memory",
-		graphText:   "Graph fact: #general discussed Dragonfly yesterday",
+		memoryContext: memory.MemoryContextResponse{Sections: []memory.MemoryContextSection{
+			{Source: "long_term_facts", Content: "Long-term recall: blackflame likes homelab memory"},
+			{Source: "graph", Content: "Graph fact: #general discussed Dragonfly yesterday"},
+		}},
 	}
 	previousAssistant := assistantClient
 	assistantClient = assistant
@@ -33,28 +35,72 @@ func TestMentionConversationIncludesScopedGraphContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected graph-backed conversation to succeed, got %v", err)
 	}
-	if len(memoryClient.graphCalls) != 1 {
-		t.Fatalf("expected one graph context call, got %d", len(memoryClient.graphCalls))
+	if len(memoryClient.memoryContextCalls) != 1 {
+		t.Fatalf("expected one combined memory context call, got %d", len(memoryClient.memoryContextCalls))
 	}
-	graphCall := memoryClient.graphCalls[0]
-	if graphCall.Query != "what did we say about memory?" || graphCall.Limit != graphContextLimit {
-		t.Fatalf("expected graph query and limit to pass through, got %#v", graphCall)
+	memoryCall := memoryClient.memoryContextCalls[0]
+	if memoryCall.Query != "what did we say about memory?" || memoryCall.GraphLimit != graphContextLimit || memoryCall.MaxItems != memoryContextLimit {
+		t.Fatalf("expected combined memory query and limits to pass through, got %#v", memoryCall)
 	}
-	if graphCall.Scope.Visibility != memory.VisibilityChannel || graphCall.Scope.GuildID != "guild-1" || graphCall.Scope.ChannelID != "channel-1" {
-		t.Fatalf("expected channel-scoped graph request, got %#v", graphCall.Scope)
+	if !memoryCall.IncludeShortTerm || !memoryCall.IncludeLongTerm || !memoryCall.IncludeReasoning || !memoryCall.IncludeGraph {
+		t.Fatalf("expected combined memory request to include all reviewed context sources, got %#v", memoryCall)
+	}
+	if memoryCall.Scope.Visibility != memory.VisibilityChannel || memoryCall.Scope.GuildID != "guild-1" || memoryCall.Scope.ChannelID != "channel-1" {
+		t.Fatalf("expected channel-scoped memory request, got %#v", memoryCall.Scope)
 	}
 	joinedPrompt := assistantPromptText(assistant.messages)
-	for _, want := range []string{"Recent Dragonfly conversation history:", "Relevant long-term recall:", "Relevant Discord graph facts:", "Long-term recall: blackflame likes homelab memory", "Graph fact: #general discussed Dragonfly yesterday"} {
+	for _, want := range []string{"Recent Dragonfly conversation history:", "Relevant reviewed memory context:", "Long-term recall: blackflame likes homelab memory", "Graph fact: #general discussed Dragonfly yesterday"} {
 		if !strings.Contains(joinedPrompt, want) {
 			t.Fatalf("expected assistant prompt to contain %q, got %#v", want, assistant.messages)
 		}
 	}
 }
 
+func TestMentionConversationDoesNotDuplicateGraphAndLongTermSections(t *testing.T) {
+	// Given
+	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
+	memoryClient := &fakeMemoryClient{memoryContext: memory.MemoryContextResponse{Sections: []memory.MemoryContextSection{
+		{Source: "long_term_facts", Content: "Long-term recall: blackflame likes homelab memory"},
+		{Source: "graph", Content: "Graph fact: #general discussed Dragonfly yesterday"},
+	}}}
+	previousAssistant := assistantClient
+	assistantClient = assistant
+	t.Cleanup(func() { assistantClient = previousAssistant })
+	previousMemory := conversationMemory
+	ConfigureMemory(memoryClient)
+	t.Cleanup(func() { ConfigureMemory(previousMemory) })
+	recorder := &discordMessageRecorder{}
+	s, m := mentionSessionAndMessage(t, mentionToken("bot-1")+" what did we say about memory?")
+	s.Client = recorder.httpClient(t)
+
+	// When
+	err := handleMentionConversation(s, m)
+
+	// Then
+	if err != nil {
+		t.Fatalf("expected combined graph conversation to succeed, got %v", err)
+	}
+	joinedPrompt := assistantPromptText(assistant.messages)
+	if strings.Count(joinedPrompt, "Relevant reviewed memory context:") != 1 {
+		t.Fatalf("expected one combined memory section, got prompt %#v", assistant.messages)
+	}
+	for _, blocked := range []string{"Relevant long-term recall:", "Relevant Discord graph facts:"} {
+		if strings.Contains(joinedPrompt, blocked) {
+			t.Fatalf("expected no legacy section %q after combined context success, got %#v", blocked, assistant.messages)
+		}
+	}
+	if strings.Count(joinedPrompt, "Long-term recall: blackflame likes homelab memory") != 1 || strings.Count(joinedPrompt, "Graph fact: #general discussed Dragonfly yesterday") != 1 {
+		t.Fatalf("expected graph and long-term content exactly once, got %#v", assistant.messages)
+	}
+	if len(memoryClient.queries) != 0 || len(memoryClient.graphCalls) != 0 {
+		t.Fatalf("expected no legacy calls after combined memory success, got queries=%d graph=%d", len(memoryClient.queries), len(memoryClient.graphCalls))
+	}
+}
+
 func TestMentionConversationContinuesWhenGraphContextFails(t *testing.T) {
 	// Given
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
-	memoryClient := &fakeMemoryClient{graphErr: errors.New("graph unavailable")}
+	memoryClient := &fakeMemoryClient{memoryContextErr: errors.New("combined memory unavailable"), graphErr: errors.New("graph unavailable")}
 	previousAssistant := assistantClient
 	assistantClient = assistant
 	t.Cleanup(func() { assistantClient = previousAssistant })
@@ -83,7 +129,7 @@ func TestMentionConversationContinuesWhenGraphContextFails(t *testing.T) {
 func TestMentionConversationDoesNotLeakOtherChannelGraphContext(t *testing.T) {
 	// Given
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
-	memoryClient := &fakeMemoryClient{graphText: "Graph fact: sibling channel secret"}
+	memoryClient := &fakeMemoryClient{memoryContext: memory.MemoryContextResponse{Sections: []memory.MemoryContextSection{{Source: "graph", Content: "Graph fact: sibling channel secret"}}}}
 	previousAssistant := assistantClient
 	assistantClient = assistant
 	t.Cleanup(func() { assistantClient = previousAssistant })
@@ -101,10 +147,10 @@ func TestMentionConversationDoesNotLeakOtherChannelGraphContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected scoped graph conversation to succeed, got %v", err)
 	}
-	if len(memoryClient.graphCalls) != 1 {
-		t.Fatalf("expected one graph context call, got %d", len(memoryClient.graphCalls))
+	if len(memoryClient.memoryContextCalls) != 1 {
+		t.Fatalf("expected one combined memory context call, got %d", len(memoryClient.memoryContextCalls))
 	}
-	requestScope := memoryClient.graphCalls[0].Scope
+	requestScope := memoryClient.memoryContextCalls[0].Scope
 	if requestScope.SessionID != "guild:guild-1:channel:channel-1" || requestScope.ChannelID != "channel-1" || requestScope.Visibility != memory.VisibilityChannel {
 		t.Fatalf("expected graph request to stay in current channel scope, got %#v", requestScope)
 	}

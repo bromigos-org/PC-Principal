@@ -1,6 +1,7 @@
 package discordevent
 
 import (
+	"context"
 	"time"
 
 	"github.com/bromigos-org/pc-principal/internal/memory"
@@ -23,6 +24,8 @@ type AttachmentCopyConfig struct {
 	Bucket               string
 	MaxSizeBytes         int
 	ContentTypeAllowlist []string
+	Timeout              time.Duration
+	Store                AttachmentStore
 }
 
 type Config struct {
@@ -40,18 +43,25 @@ type Normalizer struct {
 
 func New(config Config) Normalizer {
 	if config.AttachmentCopy.Bucket == "" {
-		config.AttachmentCopy.Bucket = "pc-principal-discord-attachments"
+		config.AttachmentCopy.Bucket = "pc-principal-discord-media"
 	}
 	if config.AttachmentCopy.MaxSizeBytes == 0 {
 		config.AttachmentCopy.MaxSizeBytes = 25_000_000
 	}
 	if len(config.AttachmentCopy.ContentTypeAllowlist) == 0 {
-		config.AttachmentCopy.ContentTypeAllowlist = []string{"image/png", "image/jpeg", "image/gif"}
+		config.AttachmentCopy.ContentTypeAllowlist = []string{"image/png", "image/jpeg", "image/gif", "image/webp", "video/mp4", "video/webm", "application/pdf", "text/plain"}
+	}
+	if config.AttachmentCopy.Timeout == 0 {
+		config.AttachmentCopy.Timeout = 10 * time.Second
 	}
 	return Normalizer{config: config}
 }
 
 func (n Normalizer) NormalizeMessageCreate(message *discordgo.Message) []memory.ClientEvent {
+	return n.NormalizeMessageCreateWithContext(context.Background(), message)
+}
+
+func (n Normalizer) NormalizeMessageCreateWithContext(ctx context.Context, message *discordgo.Message) []memory.ClientEvent {
 	scope := scopeForMessage(n.config.TenantID, n.config.AgentID, message)
 	occurredAt := timestampOrObserved(message.Timestamp, n.config.ObservedAt)
 	content := sanitizeMessageContent(message.Content)
@@ -73,7 +83,7 @@ func (n Normalizer) NormalizeMessageCreate(message *discordgo.Message) []memory.
 		scope,
 	)}
 	for _, attachment := range message.Attachments {
-		events = append(events, n.normalizeAttachment(message, attachment, scope, occurredAt))
+		events = append(events, n.normalizeAttachment(attachmentNormalizeInput{ctx: ctx, message: message, attachment: attachment, scope: scope, occurredAt: occurredAt}))
 	}
 	for _, link := range extractLinks(content) {
 		events = append(events, n.normalizeLink(message, link, scope, occurredAt))

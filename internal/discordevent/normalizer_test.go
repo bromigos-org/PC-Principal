@@ -80,13 +80,13 @@ func TestNewAttachmentCopyConfigDefaultsDisabled(t *testing.T) {
 	if copyConfig.Enabled {
 		t.Fatalf("expected attachment copy to be disabled by default, got %#v", copyConfig)
 	}
-	if copyConfig.Bucket != "pc-principal-discord-attachments" {
+	if copyConfig.Bucket != "pc-principal-discord-media" {
 		t.Fatalf("expected bucket placeholder, got %#v", copyConfig)
 	}
 	if copyConfig.MaxSizeBytes != 25_000_000 {
 		t.Fatalf("expected max size placeholder, got %#v", copyConfig)
 	}
-	if len(copyConfig.ContentTypeAllowlist) != 3 || copyConfig.ContentTypeAllowlist[0] != "image/png" || copyConfig.ContentTypeAllowlist[1] != "image/jpeg" || copyConfig.ContentTypeAllowlist[2] != "image/gif" {
+	if len(copyConfig.ContentTypeAllowlist) != 8 || copyConfig.ContentTypeAllowlist[0] != "image/png" || copyConfig.ContentTypeAllowlist[5] != "video/webm" || copyConfig.ContentTypeAllowlist[6] != "application/pdf" {
 		t.Fatalf("expected content-type allowlist placeholder, got %#v", copyConfig)
 	}
 	if copyConfig.allows(&discordgo.MessageAttachment{ContentType: "image/png", Size: 128, Filename: "a.png"}) {

@@ -27,7 +27,7 @@ Command precedence is preserved for `ping`, `help`, `chat`, `mdelete`, `mpost`, 
 ### Conversation behavior
 
 - Direct channel mentions use bounded memory keyed by guild and channel (`guild:<guild_id>:channel:<channel_id>`). The bot keeps the system prompt plus the latest 40 non-system turns when DragonflyDB/Redis is available.
-- When `MEMORY_ENABLED=true`, direct mentions also call `agents-memory` for scoped long-term recall and write user/assistant turns after each reply. Guild conversations use channel visibility; DMs use private-user visibility.
+- When `MEMORY_ENABLED=true`, direct mentions call `agents-memory` for scoped combined recall through `/v1/memory/context` and write user and assistant turns after each reply. Guild conversations use channel visibility, DMs use private-user visibility, and the bot falls back to legacy `/v1/context` plus `/v1/graph/context` only if combined memory fails.
 - Existing `chat` threads keep their current thread-scoped memory behavior.
 - If `DRAGONFLY_ADDR` is not set or the store has not initialized, conversation store reads/writes safely become no-ops instead of crashing the bot.
 - If `MEMORY_SERVICE_URL` or `MEMORY_SERVICE_TOKEN` is not set, long-term memory safely becomes a no-op instead of crashing the bot.
@@ -67,11 +67,21 @@ Command precedence is preserved for `ping`, `help`, `chat`, `mdelete`, `mpost`, 
 ### Skill and attachment policy
 
 - Reviewed skills are context, not executable self-modification. The workflow is observe, propose, ask for approval, save the approved reviewed skill, then include that reviewed skill as non-executable prompt context.
+- `/v1/skills*` remains a separate reviewed-guidance surface. It is not merged into reasoning trace storage and it is not treated as the same thing as combined memory recall.
 - Unapproved proposals are never runnable. Proposed, rejected, disabled, or unreviewed records do not appear in the prompt section that the assistant uses for conversation context.
 - Skill usage tracking is only accepted for approved reviewed skills. Attempting to record usage for an unapproved proposal is rejected by `agents-memory`.
 - Attachment handling is metadata-first by default. PC Principal records attachment filename, content type, size, dimensions, spoiler status, and sanitized URLs, plus discovered links with sanitized URLs.
 - `DISCORD_ATTACHMENT_METADATA_ENABLED=true` and `DISCORD_ATTACHMENT_COPY_ENABLED=false` is the default rollout posture. `DISCORD_ATTACHMENT_COPY_POLICY=metadata-only` means no attachment bytes are copied or stored during the default deployment.
 - RustFS only becomes relevant if a future copy policy is intentionally enabled. The current documented rollout assumes metadata-only behavior, not object copying.
+
+### Memory contract
+
+- `/v1/context` is the legacy short-term memory endpoint. PC Principal keeps it only as a compatibility fallback path.
+- `/v1/memory/context` is the primary combined endpoint. It returns short-term context, explicit long-term facts, upstream long-term preferences and entities, reasoning trace context, and optional local graph recall in one labeled response.
+- Long-term facts are called out explicitly because the local deployment stores them separately from the upstream long-term formatter's preference and entity sections.
+- Reasoning trace data is high-level only. It records action summaries, observations, and tool outcomes, and must not include raw chain-of-thought, prompt dumps, or secrets.
+- `/v1/graph/context` stays available as a local `GraphNode` and vector recall extension. It is still its own endpoint even when the combined memory response includes a graph section.
+- `/v1/skills`, `/v1/skills/proposals`, and `/v1/skills/usage` remain separate reviewed-guidance APIs rather than part of the memory trace lifecycle.
 
 ## Architecture
 
@@ -174,12 +184,14 @@ Recommended rollout sequence:
 2. Enable core memory plumbing first: `MEMORY_ENABLED`, `MEMORY_EVENTS_ENABLED`, and `MEMORY_GRAPH_CONTEXT_ENABLED`.
 3. Keep `DISCORD_BACKFILL_ENABLED`, `DISCORD_AMBIENT_REPLIES_ENABLED`, and `AMBIENT_REPLIES_ENABLED` off for the first rollout unless the change specifically needs them.
 4. Keep attachment copy off by default with `DISCORD_ATTACHMENT_COPY_ENABLED=false` and `DISCORD_ATTACHMENT_COPY_POLICY=metadata-only`.
-5. Allow ArgoCD to reconcile from Git. Do not bypass GitOps with manual cluster apply commands, manual chart upgrade commands, or manual sync clicks for this tracked service.
+5. Verify that combined `/v1/memory/context` behavior is the intended prompt path, while legacy `/v1/context` remains available for compatibility.
+6. Allow ArgoCD to reconcile from Git. Do not bypass GitOps with manual cluster apply commands, manual chart upgrade commands, or manual sync clicks for this tracked service.
 
 Rollback uses the same GitOps path. Revert or flip the smallest necessary flag in Git, push to `master`, and let ArgoCD reconcile. The main independent rollback levers are:
 
 - `MEMORY_EVENTS_ENABLED=false` to stop live Discord event ingestion while keeping the base bot online.
 - `MEMORY_GRAPH_CONTEXT_ENABLED=false` to stop graph recall without turning off basic mention conversations.
+- Rely on the built-in compatibility posture if combined memory needs to be backed out. PC Principal can fall back from `/v1/memory/context` to legacy `/v1/context` and `/v1/graph/context` without changing the service exposure model.
 - `DISCORD_BACKFILL_ENABLED=false` and `DISCORD_HISTORY_BACKFILL_ENABLED=false` to stop historical replay.
 - `DISCORD_AMBIENT_REPLIES_ENABLED=false` and `AMBIENT_REPLIES_ENABLED=false` to stop ambient follow-up replies.
 - `MEMORY_SKILL_REGISTRY_ENABLED=false`, `MEMORY_SKILL_PROPOSE_ENABLED=false`, or `MEMORY_SKILL_USAGE_ENABLED=false` to disable skill surfaces independently.
@@ -200,6 +212,8 @@ curl -s -H "Authorization: Bearer $MEMORY_SERVICE_TOKEN" \
 What to verify:
 
 - `/health` returns HTTP 200 and a JSON body with Discord `ready` or an explained degraded state.
+- Prompt-facing memory uses `/v1/memory/context`, while `/v1/context` remains the legacy compatibility path.
+- Combined memory returns explicit long-term facts, upstream long-term preference and entity context, reasoning trace summaries, and optional graph recall without merging `/v1/skills*` into the same layer.
 - Mention conversations still work, command precedence still works, and ordinary channel chatter stays silent when ambient is disabled.
 - If backfill is enabled, logs should show bounded progress and permission-denied skips, but no Discord reply traffic.
 - Skill list responses should only contain approved reviewed entries, not draft proposals.

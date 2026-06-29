@@ -24,8 +24,9 @@ const (
 )
 
 var (
-	liveMemory         memory.Client = memory.NewClient(memory.Config{}, nil)
-	liveMemoryTenantID               = "bromigos"
+	liveMemory               memory.Client = memory.NewClient(memory.Config{}, nil)
+	liveMemoryTenantID                     = "bromigos"
+	liveAttachmentCopyConfig discordevent.AttachmentCopyConfig
 )
 
 func Init() {
@@ -42,6 +43,7 @@ func Init() {
 	memoryClient := memory.NewClient(memoryConfig, nil)
 	commands.ConfigureMemory(memoryClient)
 	configureLiveMessageIngestion(memoryClient, memoryConfig.TenantID)
+	configureLiveAttachmentCopy(context.Background())
 	configureAmbientReplies()
 
 	token := os.Getenv("DISCORD_BOT_TOKEN")
@@ -144,8 +146,9 @@ func configureAmbientReplies() {
 }
 
 func ingestLiveMessage(message *discordgo.MessageCreate) {
-	normalizer := discordevent.New(discordevent.Config{TenantID: liveMemoryTenantID, AgentID: pcPrincipalAgentID, SourceMarker: discordevent.SourceMarkerLive, ObservedAt: time.Now().UTC()})
-	if _, err := liveMemory.IngestEvents(context.Background(), normalizer.NormalizeMessageCreate(message.Message)); err != nil {
+	ctx := context.Background()
+	normalizer := discordevent.New(discordevent.Config{TenantID: liveMemoryTenantID, AgentID: pcPrincipalAgentID, SourceMarker: discordevent.SourceMarkerLive, ObservedAt: time.Now().UTC(), AttachmentCopy: liveAttachmentCopyConfig})
+	if _, err := liveMemory.IngestEvents(ctx, normalizer.NormalizeMessageCreateWithContext(ctx, message.Message)); err != nil {
 		log.Printf("agents-memory live message ingest failed: %v", err)
 	}
 }

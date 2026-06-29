@@ -42,6 +42,30 @@ func (c *fakeLiveMemoryClient) GetGraphContext(ctx context.Context, request memo
 	return memory.GraphContextResponse{}, nil
 }
 
+func (c *fakeLiveMemoryClient) GetMemoryContext(ctx context.Context, request memory.MemoryContextRequest) (memory.MemoryContextResponse, error) {
+	return memory.MemoryContextResponse{}, nil
+}
+
+func (c *fakeLiveMemoryClient) StartReasoningTrace(ctx context.Context, request memory.ReasoningTraceStartRequest) (memory.ReasoningTraceStartResponse, error) {
+	return memory.ReasoningTraceStartResponse{}, nil
+}
+
+func (c *fakeLiveMemoryClient) AddReasoningStep(ctx context.Context, request memory.ReasoningStepRequest) (memory.ReasoningStepResponse, error) {
+	return memory.ReasoningStepResponse{}, nil
+}
+
+func (c *fakeLiveMemoryClient) RecordReasoningToolCall(ctx context.Context, request memory.ReasoningToolCallRequest) (memory.ReasoningToolCallResponse, error) {
+	return memory.ReasoningToolCallResponse{}, nil
+}
+
+func (c *fakeLiveMemoryClient) CompleteReasoningTrace(ctx context.Context, request memory.ReasoningTraceCompleteRequest) (memory.ReasoningTraceCompleteResponse, error) {
+	return memory.ReasoningTraceCompleteResponse{}, nil
+}
+
+func (c *fakeLiveMemoryClient) GetReasoningContext(ctx context.Context, request memory.ReasoningContextRequest) (memory.ReasoningContextResponse, error) {
+	return memory.ReasoningContextResponse{}, nil
+}
+
 func (c *fakeLiveMemoryClient) ListSkills(ctx context.Context, request memory.SkillListRequest) (memory.SkillListResponse, error) {
 	return memory.SkillListResponse{}, nil
 }

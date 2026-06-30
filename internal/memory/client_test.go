@@ -85,6 +85,52 @@ func TestClient_AddMessage_sendsScopedAuthorizedRequest(t *testing.T) {
 	}
 }
 
+func TestClient_GetMemoryContext_decodesOptionalMemoryTypeSections(t *testing.T) {
+	// Given
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/memory/context" {
+			t.Fatalf("expected POST /v1/memory/context, got %s %s", r.Method, r.URL.Path)
+		}
+		var body MemoryContextRequest
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode memory context request: %v", err)
+		}
+		if !body.IncludeShortTerm || !body.IncludeLongTerm || !body.IncludeReasoning || !body.IncludeGraph {
+			t.Fatalf("expected request to preserve memory routing flags, got %#v", body)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"sections":[{"memory_type":"reasoning","content":"prior successful tool pattern","facts":[]},{"source":"graph","content":"legacy graph label","facts":[{"kind":"graph"}]}]}`))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(Config{Enabled: true, BaseURL: server.URL, Token: "test-token"}, server.Client())
+
+	// When
+	got, err := client.GetMemoryContext(context.Background(), MemoryContextRequest{
+		Scope:            testScope(),
+		Query:            "what worked before?",
+		IncludeShortTerm: true,
+		IncludeLongTerm:  true,
+		IncludeReasoning: true,
+		IncludeGraph:     true,
+		MaxItems:         6,
+		GraphLimit:       4,
+	})
+
+	// Then
+	if err != nil {
+		t.Fatalf("expected memory context request to succeed, got %v", err)
+	}
+	if len(got.Sections) != 2 {
+		t.Fatalf("expected two memory sections, got %#v", got.Sections)
+	}
+	if got.Sections[0].MemoryType != "reasoning" || got.Sections[0].Content != "prior successful tool pattern" {
+		t.Fatalf("expected memory_type reasoning section, got %#v", got.Sections[0])
+	}
+	if got.Sections[1].Source != "graph" || got.Sections[1].Facts[0]["kind"] != "graph" {
+		t.Fatalf("expected source-labeled graph section to remain compatible, got %#v", got.Sections[1])
+	}
+}
+
 func TestClient_Noops_whenDisabled(t *testing.T) {
 	// Given
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -6,9 +6,10 @@ import (
 )
 
 type MemoryContextSection struct {
-	Source  string       `json:"source"`
-	Content string       `json:"content"`
-	Facts   []JsonObject `json:"facts"`
+	Source     string       `json:"source"`
+	MemoryType string       `json:"memory_type"`
+	Content    string       `json:"content"`
+	Facts      []JsonObject `json:"facts"`
 }
 
 type MemoryContextRequest struct {

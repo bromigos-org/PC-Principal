@@ -50,6 +50,33 @@ func TestBotMentionCommandPrecedenceStillWins(t *testing.T) {
 	}
 }
 
+func TestBotMentionConversationAddsPCReaction(t *testing.T) {
+	// Given
+	previousAssistant := assistantClient
+	assistantClient = &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
+	t.Cleanup(func() { assistantClient = previousAssistant })
+	previousMemory := conversationMemory
+	ConfigureMemory(&fakeMemoryClient{})
+	t.Cleanup(func() { ConfigureMemory(previousMemory) })
+	recorder := &discordMessageRecorder{}
+	s, m := mentionSessionAndMessage(t, mentionToken("bot-1")+" what channel is <@user-2> most active in?")
+	s.Client = recorder.httpClient(t)
+
+	// When
+	BotMention(s, m)
+
+	// Then
+	if len(recorder.reactions) != 1 {
+		t.Fatalf("expected PC reaction on mention conversation, got %#v", recorder.reactions)
+	}
+	if !strings.Contains(recorder.reactions[0], "PC") || !strings.Contains(recorder.reactions[0], "emoji-1") {
+		t.Fatalf("expected :PC: emoji reaction path, got %q", recorder.reactions[0])
+	}
+	if len(recorder.sent) != 1 {
+		t.Fatalf("expected mention conversation reply, got %#v", recorder.sent)
+	}
+}
+
 func TestNonMentionMessageIngestsWithoutReply(t *testing.T) {
 	// Given
 	recorder := &discordMessageRecorder{}
@@ -218,7 +245,8 @@ func mentionSessionAndMessage(t *testing.T, content string) (*discordgo.Session,
 }
 
 type discordMessageRecorder struct {
-	sent []discordgo.MessageSend
+	sent      []discordgo.MessageSend
+	reactions []string
 }
 
 func (r *discordMessageRecorder) httpClient(t *testing.T) *http.Client {
@@ -226,7 +254,14 @@ func (r *discordMessageRecorder) httpClient(t *testing.T) *http.Client {
 	return &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		status := http.StatusInternalServerError
 		body := `{"message":"test failure"}`
-		if req.Method == http.MethodPost && strings.Contains(req.URL.Path, "/channels/channel-1/messages") {
+		if req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/applications/bot-1/emojis") {
+			status = http.StatusOK
+			body = `{"items":[{"id":"emoji-1","name":"PC"}]}`
+		} else if req.Method == http.MethodPut && strings.Contains(req.URL.Path, "/channels/channel-1/messages/message-1/reactions/") {
+			r.reactions = append(r.reactions, req.URL.Path)
+			status = http.StatusNoContent
+			body = ""
+		} else if req.Method == http.MethodPost && strings.Contains(req.URL.Path, "/channels/channel-1/messages") {
 			var sent discordgo.MessageSend
 			if err := json.NewDecoder(req.Body).Decode(&sent); err != nil {
 				t.Fatalf("decode Discord message send: %v", err)

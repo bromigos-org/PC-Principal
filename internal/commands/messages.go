@@ -39,6 +39,7 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	parts := strings.Fields(m.Content)
 	if len(parts) < 2 {
+		reactPC(s, m)
 		if err := handleMentionConversation(s, m); err != nil {
 			fmt.Printf("mention: conversation error: %v\n", err)
 			s.ChannelMessageSend(m.ChannelID, "Bro, LiteLLM is not cooperating right now. Totally unacceptable.")
@@ -55,6 +56,7 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 	}
 
+	reactPC(s, m)
 	if err := handleMentionConversation(s, m); err != nil {
 		fmt.Printf("mention: conversation error: %v\n", err)
 		s.ChannelMessageSend(m.ChannelID, "Bro, LiteLLM is not cooperating right now. Totally unacceptable.")

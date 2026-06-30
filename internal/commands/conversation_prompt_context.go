@@ -118,7 +118,7 @@ func memoryContextMessages(history []store.Message, memoryPrompt conversationMem
 
 func hasShortTermMemorySection(response memory.MemoryContextResponse) bool {
 	for _, section := range response.Sections {
-		if strings.EqualFold(strings.TrimSpace(section.Source), "short_term") && memorySectionPrompt(section) != "" {
+		if strings.EqualFold(memorySectionLabel(section), "short_term") && memorySectionPrompt(section) != "" {
 			return true
 		}
 	}
@@ -140,8 +140,8 @@ func combinedMemoryPrompt(response memory.MemoryContextResponse) string {
 
 func memorySectionPrompt(section memory.MemoryContextSection) string {
 	lines := make([]string, 0, len(section.Facts)+2)
-	if source := strings.TrimSpace(section.Source); source != "" {
-		lines = append(lines, "Source: "+source)
+	if label := memorySectionLabel(section); label != "" {
+		lines = append(lines, "Source: "+label)
 	}
 	if content := strings.TrimSpace(section.Content); content != "" {
 		lines = append(lines, content)
@@ -152,6 +152,13 @@ func memorySectionPrompt(section memory.MemoryContextSection) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func memorySectionLabel(section memory.MemoryContextSection) string {
+	if memoryType := strings.TrimSpace(section.MemoryType); memoryType != "" {
+		return memoryType
+	}
+	return strings.TrimSpace(section.Source)
 }
 
 func factPrompt(fact memory.JsonObject) string {

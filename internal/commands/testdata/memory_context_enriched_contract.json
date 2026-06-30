@@ -1,0 +1,88 @@
+{
+  "sections": [
+    {
+      "source": "conversation_buffer",
+      "memory_type": "short_term",
+      "content": "Short-term continuity: blackflame asked PC Principal to keep the Neo4j agent-memory contract test-focused in this Discord thread.",
+      "facts": [
+        {
+          "kind": "message",
+          "session_id": "guild:123:channel:456",
+          "summary": "Continue the current memory-upgrade conversation without re-asking for context."
+        }
+      ]
+    },
+    {
+      "source": "long_term_facts",
+      "memory_type": "long_term",
+      "content": "Long-term durable knowledge: PC-Principal consumes typed agents-memory context responses and must not call Neo4j directly.",
+      "facts": [
+        {
+          "kind": "fact",
+          "durability": "long_term",
+          "summary": "agents-memory is the sole SDK and Neo4j gateway for Bromigos agents."
+        }
+      ]
+    },
+    {
+      "source": "entity_enrichment",
+      "memory_type": "entities",
+      "content": "Entity enrichment: PC Principal is the Discord agent rendering reviewed memory context for Bromigos.",
+      "facts": [
+        {
+          "kind": "entity",
+          "name": "PC Principal",
+          "type": "agent"
+        }
+      ]
+    },
+    {
+      "source": "preference_enrichment",
+      "memory_type": "preferences",
+      "content": "Durable preference: blackflame prefers concise answers unless explicitly asking for detailed verification evidence.",
+      "facts": [
+        {
+          "kind": "preference",
+          "category": "response_style",
+          "summary": "Concise by default, detailed for verification ledgers."
+        }
+      ]
+    },
+    {
+      "source": "deduplication",
+      "memory_type": "dedup_notice",
+      "content": "Dedup notice: overlapping graph facts were removed before prompt rendering so long-term and graph context are not duplicated.",
+      "facts": [
+        {
+          "kind": "dedup_notice",
+          "removed": 2,
+          "summary": "Graph overlap was consolidated before section ordering."
+        }
+      ]
+    },
+    {
+      "source": "reasoning_recall",
+      "memory_type": "reasoning",
+      "content": "Reasoning recall: prior successful pattern was to inspect typed contracts, add fixture coverage, then run both repo acceptance commands.",
+      "facts": [
+        {
+          "kind": "procedure",
+          "tool": "pytest/go test",
+          "summary": "Validate fixture decoding on both sides before claiming integration coverage."
+        }
+      ]
+    },
+    {
+      "source": "reasoning_similarity",
+      "memory_type": "similar_traces",
+      "content": "Similar traces: a previous prompt-rendering task preserved service ordering by rendering generic memory_type labels without prompt-side filtering.",
+      "facts": [
+        {
+          "kind": "trace_summary",
+          "trace_id": "trace-contract-12",
+          "summary": "Service ordered enriched sections rendered generically in PC-Principal."
+        }
+      ]
+    }
+  ]
+}

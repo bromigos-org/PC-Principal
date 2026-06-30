@@ -20,7 +20,7 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	if len(m.Mentions) == 0 || m.Mentions[0].ID != s.State.User.ID {
+	if !mentionsBot(s, m) {
 		return
 	}
 
@@ -48,7 +48,7 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	name := strings.ToLower(parts[1])
 	for _, cmd := range registry {
-		if cmd.Name == name {
+		if cmd.Name == name && name != "hey" {
 			reactPC(s, m)
 			cmd.Handler(s, m)
 			return

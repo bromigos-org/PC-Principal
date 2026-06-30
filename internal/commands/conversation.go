@@ -88,7 +88,6 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 		"include_reasoning":     true,
 		"include_short_term":    true,
 		"max_items":             memoryContextLimit,
-		"used_legacy_context":   memoryPrompt.usedLegacyContext,
 		"used_short_term_scope": memoryPrompt.hasShortTerm,
 	}, memory.JsonObject{"prompt_empty": strings.TrimSpace(memoryPrompt.prompt) == ""})
 	skills, err := conversationMemory.ListSkills(ctx, memory.SkillListRequest{
@@ -139,23 +138,25 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 }
 
 func mentionConversationText(content string, botID string) (string, bool) {
+	text := strings.TrimSpace(content)
 	mentionForms := []string{"<@" + botID + ">", "<@!" + botID + ">"}
 	for _, mention := range mentionForms {
-		if strings.HasPrefix(strings.TrimSpace(content), mention) {
-			text := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(content), mention))
-			if strings.HasPrefix(strings.ToLower(text), "hey") {
-				fields := strings.Fields(text)
-				if len(fields) > 0 && strings.EqualFold(fields[0], "hey") {
-					if len(fields) == 1 {
-						return "", true
-					}
-					return strings.TrimSpace(strings.TrimPrefix(text, fields[0])), true
-				}
-			}
-			return text, true
+		mentionIndex := strings.Index(text, mention)
+		if mentionIndex >= 0 {
+			before := strings.TrimSpace(text[:mentionIndex])
+			after := trimLeadingHey(strings.TrimSpace(text[mentionIndex+len(mention):]))
+			return strings.TrimSpace(strings.Join([]string{before, after}, " ")), true
 		}
 	}
 	return "", false
+}
+
+func trimLeadingHey(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) == 0 || !strings.EqualFold(fields[0], "hey") {
+		return text
+	}
+	return strings.TrimSpace(strings.TrimPrefix(text, fields[0]))
 }
 
 func sendDiscordResponse(s *discordgo.Session, channelID string, response string) error {
@@ -216,18 +217,22 @@ func channelMemoryKey(m *discordgo.MessageCreate) string {
 func conversationMemoryScope(m *discordgo.MessageCreate) memory.Scope {
 	spaceID := "dm"
 	visibility := memory.VisibilityPrivateUser
+	sessionID := "dm:" + m.ChannelID
+	channelID := m.ChannelID
 	if m.GuildID != "" {
 		spaceID = m.GuildID
-		visibility = memory.VisibilityChannel
+		visibility = memory.VisibilityGuild
+		sessionID = "guild:" + m.GuildID
+		channelID = ""
 	}
 	return memory.Scope{
 		TenantID:   conversationMemoryTenantID,
 		SpaceID:    spaceID,
 		AgentID:    "pc-principal",
-		SessionID:  channelMemoryKey(m),
+		SessionID:  sessionID,
 		UserID:     m.Author.ID,
 		Visibility: visibility,
 		GuildID:    m.GuildID,
-		ChannelID:  m.ChannelID,
+		ChannelID:  channelID,
 	}
 }

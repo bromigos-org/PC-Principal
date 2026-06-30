@@ -59,6 +59,40 @@ func TestMentionConversationText_returns_empty_for_mention_only(t *testing.T) {
 	}
 }
 
+func TestMentionConversationText_routes_when_bot_mention_appears_later(t *testing.T) {
+	// Given
+	content := "<@user-2> said memory was broken " + mentionToken("bot-1") + " what do you know?"
+
+	// When
+	got, ok := mentionConversationText(content, "bot-1")
+
+	// Then
+	if !ok {
+		t.Fatal("expected later bot mention to route to conversation")
+	}
+	want := "<@user-2> said memory was broken what do you know?"
+	if got != want {
+		t.Fatalf("expected mention text %q, got %q", want, got)
+	}
+}
+
+func TestMentionConversationText_strips_hey_after_later_bot_mention(t *testing.T) {
+	// Given
+	content := "<@user-2> " + mentionToken("bot-1") + " hey what channel is user-2 most active in?"
+
+	// When
+	got, ok := mentionConversationText(content, "bot-1")
+
+	// Then
+	if !ok {
+		t.Fatal("expected later bot mention to route to conversation")
+	}
+	want := "<@user-2> what channel is user-2 most active in?"
+	if got != want {
+		t.Fatalf("expected mention text %q, got %q", want, got)
+	}
+}
+
 func TestChunkDiscordMessage_splits_long_response_under_limit(t *testing.T) {
 	// Given
 	text := strings.Repeat("a", discordMessageLimit+25)

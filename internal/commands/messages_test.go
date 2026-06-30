@@ -66,24 +66,6 @@ func TestNonMentionMessageIngestsWithoutReply(t *testing.T) {
 	}
 }
 
-func TestBotMention_preserves_registered_command_precedence_for_hey(t *testing.T) {
-	// Given
-	recorder := &discordMessageRecorder{}
-	s, m := mentionSessionAndMessage(t, mentionToken("bot-1")+" hey")
-	s.Client = recorder.httpClient(t)
-
-	// When
-	BotMention(s, m)
-
-	// Then
-	if len(recorder.sent) != 1 {
-		t.Fatalf("expected 1 Discord message, got %d", len(recorder.sent))
-	}
-	if !strings.Contains(recorder.sent[0].Content, "say something after 'hey'") {
-		t.Fatalf("expected hey command prompt to win over mention fallback, got %q", recorder.sent[0].Content)
-	}
-}
-
 func TestBotMention_preserves_allowed_role_gate_for_commands(t *testing.T) {
 	// Given
 	previousAllowedRoles := allowedRoles

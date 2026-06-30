@@ -60,7 +60,7 @@ func TestMentionConversationRendersEnrichedMemoryTypeSectionsInServiceOrder(t *t
 	}
 }
 
-func TestMentionConversationFallsBackToLegacyContextAndGraphWhenCombinedContextFails(t *testing.T) {
+func TestMentionConversationContinuesWithoutLegacyContextWhenCombinedContextFails(t *testing.T) {
 	// Given
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
 	memoryClient := &fakeMemoryClient{
@@ -83,19 +83,19 @@ func TestMentionConversationFallsBackToLegacyContextAndGraphWhenCombinedContextF
 
 	// Then
 	if err != nil {
-		t.Fatalf("expected legacy fallback conversation to succeed, got %v", err)
+		t.Fatalf("expected conversation to continue without legacy fallback, got %v", err)
 	}
-	if len(memoryClient.memoryContextCalls) != 1 || len(memoryClient.queries) != 1 || len(memoryClient.graphCalls) != 1 {
-		t.Fatalf("expected combined call followed by legacy context and graph fallback, got combined=%d legacy=%d graph=%d", len(memoryClient.memoryContextCalls), len(memoryClient.queries), len(memoryClient.graphCalls))
+	if len(memoryClient.memoryContextCalls) != 1 || len(memoryClient.queries) != 0 || len(memoryClient.graphCalls) != 0 {
+		t.Fatalf("expected only combined gnosis memory query, got combined=%d legacy=%d graph=%d", len(memoryClient.memoryContextCalls), len(memoryClient.queries), len(memoryClient.graphCalls))
 	}
 	joinedPrompt := assistantPromptText(assistant.messages)
-	for _, want := range []string{"Relevant long-term recall:\nlegacy short-term continuity", "Relevant Discord graph facts:\nlegacy graph fact"} {
-		if !strings.Contains(joinedPrompt, want) {
-			t.Fatalf("expected fallback prompt to contain %q, got %#v", want, assistant.messages)
+	for _, blocked := range []string{"legacy short-term continuity", "legacy graph fact", "Relevant reviewed memory context:"} {
+		if strings.Contains(joinedPrompt, blocked) {
+			t.Fatalf("expected failed combined recall not to add %q to prompt, got %#v", blocked, assistant.messages)
 		}
 	}
-	if strings.Contains(joinedPrompt, "Relevant reviewed memory context:") {
-		t.Fatalf("expected failed combined prompt to be absent, got %#v", assistant.messages)
+	if len(recorder.sent) != 1 || recorder.sent[0].Content != "I'm PC, Texas A&M!" {
+		t.Fatalf("expected Discord reply without memory context, got %#v", recorder.sent)
 	}
 }
 

@@ -24,7 +24,6 @@ type conversationMemoryPromptRequest struct {
 type conversationMemoryPromptResult struct {
 	prompt                 string
 	hasShortTerm           bool
-	usedLegacyContext      bool
 	combinedContextSuccess bool
 }
 
@@ -50,39 +49,7 @@ func conversationMemoryPrompt(ctx context.Context, request conversationMemoryPro
 		return conversationMemoryPromptResult{prompt: combinedMemoryPrompt(combined), hasShortTerm: hasShortTermMemorySection(combined), combinedContextSuccess: true}
 	}
 	log.Printf("gnosis combined context recall failed: %v", err)
-	return conversationMemoryPromptResult{prompt: legacyMemoryPrompt(ctx, request), usedLegacyContext: true}
-}
-
-func legacyMemoryPrompt(ctx context.Context, request conversationMemoryPromptRequest) string {
-	recalledContext, err := conversationMemory.GetContext(ctx, memory.ContextQuery{
-		Scope: request.scope,
-		Query: request.query,
-		Limit: memoryContextLimit,
-	})
-	if err != nil {
-		log.Printf("gnosis context recall failed: %v", err)
-	}
-	graphContext, err := conversationMemory.GetGraphContext(ctx, memory.GraphContextRequest{
-		Scope:           request.scope,
-		Query:           request.query,
-		Limit:           graphContextLimit,
-		IncludeTopology: true,
-	})
-	if err != nil {
-		log.Printf("gnosis graph context recall failed: %v", err)
-	}
-	return legacyMemoryPromptText(recalledContext, graphContext.Context)
-}
-
-func legacyMemoryPromptText(recalledContext string, graphContext string) string {
-	parts := make([]string, 0, 2)
-	if recalled := strings.TrimSpace(recalledContext); recalled != "" {
-		parts = append(parts, memorySystemPrefix+recalled)
-	}
-	if graph := strings.TrimSpace(graphContext); graph != "" {
-		parts = append(parts, graphSystemPrefix+graph)
-	}
-	return strings.Join(parts, "\n")
+	return conversationMemoryPromptResult{}
 }
 
 func historyWithMemoryContext(history []store.Message, memoryPrompt conversationMemoryPromptResult, skills []memory.SkillRecord) []store.Message {

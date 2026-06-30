@@ -37,7 +37,7 @@ func TestMentionConversationRecordsSuccessfulReasoningTrace(t *testing.T) {
 		t.Fatalf("expected one reasoning trace start, got %d", len(memoryClient.startedTraces))
 	}
 	started := memoryClient.startedTraces[0]
-	if started.TriggeredByMessageID != "message-1" || started.UserIdentifier != "user-1" || started.SessionID != "guild:guild-1:channel:channel-1" {
+	if started.TriggeredByMessageID != "message-1" || started.UserIdentifier != "user-1" || started.SessionID != "guild:guild-1" {
 		t.Fatalf("expected trace to reference Discord lifecycle IDs, got %#v", started)
 	}
 	if strings.Contains(started.Task, "prove you're pc") || strings.Contains(traceObjectText(started.Metadata), "prove you're pc") {
@@ -70,7 +70,7 @@ func TestMentionConversationRecordsSuccessfulReasoningTrace(t *testing.T) {
 	}
 }
 
-func TestMentionConversationRecordsMemoryContextFallbackInReasoningTrace(t *testing.T) {
+func TestMentionConversationRecordsMemoryContextFailureWithoutLegacyFallback(t *testing.T) {
 	// Given
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
 	memoryClient := &fakeMemoryClient{
@@ -93,13 +93,13 @@ func TestMentionConversationRecordsMemoryContextFallbackInReasoningTrace(t *test
 
 	// Then
 	if err != nil {
-		t.Fatalf("expected fallback conversation to succeed, got %v", err)
+		t.Fatalf("expected conversation to continue without memory context, got %v", err)
 	}
-	if len(memoryClient.queries) != 1 || len(memoryClient.graphCalls) != 1 {
-		t.Fatalf("expected legacy memory fallback, got queries=%d graph=%d", len(memoryClient.queries), len(memoryClient.graphCalls))
+	if len(memoryClient.queries) != 0 || len(memoryClient.graphCalls) != 0 {
+		t.Fatalf("expected no legacy memory fallback, got queries=%d graph=%d", len(memoryClient.queries), len(memoryClient.graphCalls))
 	}
 	if hasReasoningToolCall(memoryClient.toolCalls, "gnosis.memory_context", "success") {
-		t.Fatalf("expected memory context fallback not to be recorded as success, got %#v", memoryClient.toolCalls)
+		t.Fatalf("expected memory context failure not to be recorded as success, got %#v", memoryClient.toolCalls)
 	}
 	if !hasReasoningToolCall(memoryClient.toolCalls, "gnosis.memory_context", "error") {
 		t.Fatalf("expected memory context fallback error status, got %#v", memoryClient.toolCalls)

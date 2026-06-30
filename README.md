@@ -50,6 +50,35 @@ When `MEMORY_ENABLED=true`, the conversation flow asks `agents-memory` for combi
 - If combined recall fails, the bot falls back to legacy `POST /v1/context` and `POST /v1/graph/context`.
 - If the memory service is unavailable, conversation handling degrades instead of crashing the bot.
 
+## How PC-Principal uses memory
+
+PC-Principal is responsible for Discord context capture and prompt assembly. `agents-memory` is responsible for scope policy, redaction, and durable memory decisions.
+
+- The bot turns Discord state into a `MemoryScope`, including tenant, agent, session, user, and when available guild and channel identifiers.
+- That scope is sent to `agents-memory`, which decides which short-term, long-term, reasoning, and graph-backed sections are allowed to come back.
+- The bot reads the combined response as labeled prompt sections, renders them in service order, and keeps reviewed skills separate from memory recall.
+- If the combined endpoint is missing a `short_term` section, local bounded history from Dragonfly or in-process memory can still fill the immediate continuity gap.
+- If combined recall is unavailable, the bot falls back to the legacy context routes instead of inventing its own memory policy.
+
+### Combined memory request and rendering
+
+For combined recall, the bot sends one `POST /v1/memory/context` request with the current `MemoryScope`, the active user query or message, and any request options that bound the amount of recall it wants back. `agents-memory` then reads the allowed internal layers, applies scope and redaction policy, and returns prompt-safe `sections[]` entries instead of one flattened durable store.
+
+PC-Principal consumes that response as reviewed memory context.
+
+- It renders each returned section under `Relevant reviewed memory context:`.
+- It prefers the labeled `memory_type` for section headings and falls back to legacy `source` labels when needed.
+- It renders optional `facts` as deterministic lines under the matching section instead of reclassifying them locally.
+- It keeps reviewed skills separate from memory sections so prompt assembly does not blur memory recall with skill guidance.
+
+If combined memory is unavailable, the bot falls back to legacy `POST /v1/context` plus `POST /v1/graph/context`, then local Dragonfly or in-process history for immediate continuity. That keeps conversation handling alive without bypassing gateway policy or inventing client-side scope rules.
+
+Write-back follows the same boundary.
+
+- PC-Principal writes user and assistant turns, optional Discord events, and reasoning lifecycle records over HTTP.
+- The bot never writes directly to Neo4j and never decides its own redaction rules.
+- The gateway receives those writes, applies policy, and decides what becomes prompt-safe recall later.
+
 ## Prompt assembly flow
 
 ```mermaid

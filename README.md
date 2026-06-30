@@ -11,7 +11,7 @@ It is intentionally not a Neo4j client and not a Python SDK client.
 - Writes user and assistant turns back to the memory gateway when memory is enabled.
 - Emits structured Discord events for ingestion, including messages, reactions, topology changes, members, roles, links, and attachments.
 - Records reviewed skill context and reasoning trace lifecycle data through the gateway.
-- Falls back safely when the combined memory endpoint or optional dependencies are unavailable.
+- Degrades safely when the combined memory endpoint or optional dependencies are unavailable.
 
 ## Architecture
 
@@ -47,18 +47,19 @@ When `GNOSIS_ENABLED=true`, the conversation flow asks `gnosis` for combined con
 
 - If combined recall succeeds, the bot renders service-ordered sections under `Relevant reviewed memory context:`.
 - If the returned sections do not include `short_term`, the bot can still prepend bounded local short-term history from Dragonfly or in-memory history.
-- If combined recall fails, the bot falls back to legacy `POST /v1/context` and `POST /v1/graph/context`.
+- If combined recall fails, the bot continues the conversation without memory context instead of calling older context routes.
 - If `gnosis` is unavailable, conversation handling degrades instead of crashing the bot.
 
 ## How PC-Principal uses memory
 
 PC-Principal is responsible for Discord context capture and prompt assembly. `gnosis` is responsible for scope policy, redaction, and durable memory decisions.
 
-- The bot turns Discord state into a `MemoryScope`, including tenant, agent, session, user, and when available guild and channel identifiers.
+- The bot turns Discord state into a `MemoryScope`, including tenant, agent, session, user, and Discord boundary identifiers.
+- Guild conversations use guild-scoped recall so same-guild graph facts can answer cross-channel activity questions; DM conversations stay private-user scoped.
 - That scope is sent to `gnosis`, which decides which short-term, long-term, reasoning, and graph-backed sections are allowed to come back.
 - The bot reads the combined response as labeled prompt sections, renders them in service order, and keeps reviewed skills separate from memory recall.
 - If the combined endpoint is missing a `short_term` section, local bounded history from Dragonfly or in-process memory can still fill the immediate continuity gap.
-- If combined recall is unavailable, the bot falls back to the legacy context routes instead of inventing its own memory policy.
+- If combined recall is unavailable, the bot skips memory context rather than inventing its own memory policy.
 
 ### Combined memory request and rendering
 
@@ -71,7 +72,7 @@ PC-Principal consumes that response as reviewed memory context.
 - It renders optional `facts` as deterministic lines under the matching section instead of reclassifying them locally.
 - It keeps reviewed skills separate from memory sections so prompt assembly does not blur memory recall with skill guidance.
 
-If combined memory is unavailable, the bot falls back to legacy `POST /v1/context` plus `POST /v1/graph/context`, then local Dragonfly or in-process history for immediate continuity. That keeps conversation handling alive without bypassing gateway policy or inventing client-side scope rules.
+If combined memory is unavailable, the bot continues with local Dragonfly or in-process history for immediate continuity. It does not call older context routes or bypass gateway policy with client-side scope rules.
 
 Write-back follows the same boundary.
 
@@ -95,9 +96,7 @@ sequenceDiagram
     alt Combined context succeeds
         M-->>B: sections with memory_type and facts
     else Combined context fails
-        B->>M: POST /v1/context
-        B->>M: POST /v1/graph/context
-        M-->>B: legacy short-term and graph context
+        B->>B: Continue with local bounded history only
     end
     B->>L: Build final prompt with memory and skills
     L-->>B: Assistant reply
@@ -172,7 +171,7 @@ go test ./...
 
 Important coverage points in the repo include:
 
-- conversation prompt fallback and combined memory rendering tests under `internal/commands/`
+- conversation prompt degradation and combined memory rendering tests under `internal/commands/`
 - memory client contract coverage under `internal/memory/`
 - event and backfill behavior under `internal/backfill/`, `internal/run/`, and `internal/discordevent/`
 
@@ -198,13 +197,13 @@ PC-Principal is expected to run in Kubernetes with GitOps-driven config changes.
 
 1. Revert the smallest Git or Helm change.
 2. Let ArgoCD reconcile.
-3. If combined memory recall needs to back out, the bot can fall back to legacy `/v1/context` plus `/v1/graph/context` without changing the integration boundary.
+3. If combined memory recall needs to back out, revert the bot and `gnosis` changes together so the integration boundary stays consistent.
 
 ## Health and failure behavior
 
 - `GET /health` and `/healthz` expose bot, Discord, and Dragonfly readiness state.
 - `gnosis` failures are logged and treated as degraded dependencies where possible.
-- Prompt construction remains usable with fallback context or local short-term history if the primary combined endpoint fails.
+- Prompt construction remains usable with local short-term history if the primary combined endpoint fails.
 
 ## Current guarantees and non-goals
 
@@ -212,7 +211,7 @@ PC-Principal is expected to run in Kubernetes with GitOps-driven config changes.
 
 - HTTP-only memory integration.
 - Combined memory prompt rendering with `memory_type` awareness.
-- Safe fallback to legacy context endpoints.
+- Safe degradation when combined memory recall is unavailable.
 - Structured event ingestion without requiring the bot to reply.
 - Reasoning trace lifecycle writes through the gateway.
 

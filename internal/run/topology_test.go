@@ -157,11 +157,11 @@ func TestIngestStartupSnapshot_enumerates_full_topology_without_default_member_o
 		t.Fatalf("expected all startup members to be ingested, got %d events total=%d", countEvents(memoryClient.events, memory.EventTypeMemberUpdated), len(memoryClient.events))
 	}
 	if len(memoryClient.batches) < 2 {
-		t.Fatalf("expected startup snapshot to split agents-memory batches under the API cap, got %d batch(es)", len(memoryClient.batches))
+		t.Fatalf("expected startup snapshot to split gnosis batches under the API cap, got %d batch(es)", len(memoryClient.batches))
 	}
 	for _, batch := range memoryClient.batches {
 		if len(batch) > 100 {
-			t.Fatalf("expected startup snapshot batch to stay under agents-memory cap, got %d events", len(batch))
+			t.Fatalf("expected startup snapshot batch to stay under gnosis cap, got %d events", len(batch))
 		}
 	}
 	if !containsRunEvent(memoryClient.events, memory.EventTypeUserDiscovered) || !containsRunEvent(memoryClient.events, memory.EventTypeMemberRoleAssigned) {

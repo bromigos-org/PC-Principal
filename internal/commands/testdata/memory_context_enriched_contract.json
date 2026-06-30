@@ -15,12 +15,12 @@
     {
       "source": "long_term_facts",
       "memory_type": "long_term",
-      "content": "Long-term durable knowledge: PC-Principal consumes typed agents-memory context responses and must not call Neo4j directly.",
+      "content": "Long-term durable knowledge: PC-Principal consumes typed gnosis context responses and must not call Neo4j directly.",
       "facts": [
         {
           "kind": "fact",
           "durability": "long_term",
-          "summary": "agents-memory is the sole SDK and Neo4j gateway for Bromigos agents."
+          "summary": "gnosis is the sole SDK and Neo4j gateway for Bromigos agents."
         }
       ]
     },

@@ -19,7 +19,7 @@ func ingestStartupSnapshot(s *discordgo.Session, event *discordgo.Ready) {
 	for _, readyGuild := range event.Guilds {
 		guild, err := startupGuild(s, readyGuild)
 		if err != nil {
-			log.Printf("agents-memory startup snapshot guild %s unavailable: %v", readyGuild.ID, err)
+			log.Printf("gnosis startup snapshot guild %s unavailable: %v", readyGuild.ID, err)
 			continue
 		}
 		normalizer := discordevent.New(discordevent.Config{TenantID: liveMemoryTenantID, AgentID: pcPrincipalAgentID, SourceMarker: discordevent.SourceMarkerBackfill, ObservedAt: time.Now().UTC(), Snapshot: discordevent.Snapshot{Channels: startupChannelMap(guild)}})

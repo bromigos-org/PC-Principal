@@ -37,7 +37,7 @@ func startConversationReasoningTrace(ctx context.Context, m *discordgo.MessageCr
 		},
 	})
 	if err != nil {
-		log.Printf("agents-memory reasoning trace start failed: %v", err)
+		log.Printf("gnosis reasoning trace start failed: %v", err)
 		return conversationReasoningTrace{}
 	}
 	if strings.TrimSpace(response.TraceID) == "" {
@@ -58,7 +58,7 @@ func (t *conversationReasoningTrace) recordStep(ctx context.Context, action stri
 		Metadata:    metadata,
 	})
 	if err != nil {
-		log.Printf("agents-memory reasoning step failed: %v", err)
+		log.Printf("gnosis reasoning step failed: %v", err)
 		return
 	}
 	t.nextStep++
@@ -81,7 +81,7 @@ func (t *conversationReasoningTrace) recordToolCall(ctx context.Context, toolNam
 		request.Error = "operation failed"
 	}
 	if _, err := conversationMemory.RecordReasoningToolCall(ctx, request); err != nil {
-		log.Printf("agents-memory reasoning tool call failed: %v", err)
+		log.Printf("gnosis reasoning tool call failed: %v", err)
 	}
 }
 
@@ -95,6 +95,6 @@ func (t conversationReasoningTrace) complete(ctx context.Context, outcome string
 		Success:  &success,
 		Metadata: metadata,
 	}); err != nil {
-		log.Printf("agents-memory reasoning trace complete failed: %v", err)
+		log.Printf("gnosis reasoning trace complete failed: %v", err)
 	}
 }

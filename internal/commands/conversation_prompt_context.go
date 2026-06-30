@@ -49,7 +49,7 @@ func conversationMemoryPrompt(ctx context.Context, request conversationMemoryPro
 	if err == nil {
 		return conversationMemoryPromptResult{prompt: combinedMemoryPrompt(combined), hasShortTerm: hasShortTermMemorySection(combined), combinedContextSuccess: true}
 	}
-	log.Printf("agents-memory combined context recall failed: %v", err)
+	log.Printf("gnosis combined context recall failed: %v", err)
 	return conversationMemoryPromptResult{prompt: legacyMemoryPrompt(ctx, request), usedLegacyContext: true}
 }
 
@@ -60,7 +60,7 @@ func legacyMemoryPrompt(ctx context.Context, request conversationMemoryPromptReq
 		Limit: memoryContextLimit,
 	})
 	if err != nil {
-		log.Printf("agents-memory context recall failed: %v", err)
+		log.Printf("gnosis context recall failed: %v", err)
 	}
 	graphContext, err := conversationMemory.GetGraphContext(ctx, memory.GraphContextRequest{
 		Scope:           request.scope,
@@ -69,7 +69,7 @@ func legacyMemoryPrompt(ctx context.Context, request conversationMemoryPromptReq
 		IncludeTopology: true,
 	})
 	if err != nil {
-		log.Printf("agents-memory graph context recall failed: %v", err)
+		log.Printf("gnosis graph context recall failed: %v", err)
 	}
 	return legacyMemoryPromptText(recalledContext, graphContext.Context)
 }

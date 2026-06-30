@@ -47,12 +47,12 @@ func TestMentionConversationRecordsSuccessfulReasoningTrace(t *testing.T) {
 		t.Fatalf("expected trace steps and tool calls, got steps=%d tools=%d", len(memoryClient.reasoningSteps), len(memoryClient.toolCalls))
 	}
 	for _, want := range []string{
-		"agents_memory.memory_context",
-		"agents_memory.skills_list",
+		"gnosis.memory_context",
+		"gnosis.skills_list",
 		"litellm.generate",
 		"discord.message_send",
-		"agents_memory.message_write.user",
-		"agents_memory.message_write.assistant",
+		"gnosis.message_write.user",
+		"gnosis.message_write.assistant",
 	} {
 		if !hasReasoningToolCall(memoryClient.toolCalls, want, "success") {
 			t.Fatalf("expected successful %s tool call, got %#v", want, memoryClient.toolCalls)
@@ -98,10 +98,10 @@ func TestMentionConversationRecordsMemoryContextFallbackInReasoningTrace(t *test
 	if len(memoryClient.queries) != 1 || len(memoryClient.graphCalls) != 1 {
 		t.Fatalf("expected legacy memory fallback, got queries=%d graph=%d", len(memoryClient.queries), len(memoryClient.graphCalls))
 	}
-	if hasReasoningToolCall(memoryClient.toolCalls, "agents_memory.memory_context", "success") {
+	if hasReasoningToolCall(memoryClient.toolCalls, "gnosis.memory_context", "success") {
 		t.Fatalf("expected memory context fallback not to be recorded as success, got %#v", memoryClient.toolCalls)
 	}
-	if !hasReasoningToolCall(memoryClient.toolCalls, "agents_memory.memory_context", "error") {
+	if !hasReasoningToolCall(memoryClient.toolCalls, "gnosis.memory_context", "error") {
 		t.Fatalf("expected memory context fallback error status, got %#v", memoryClient.toolCalls)
 	}
 	traceText := reasoningTraceText(memoryClient)

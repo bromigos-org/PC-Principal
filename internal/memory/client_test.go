@@ -9,6 +9,22 @@ import (
 	"testing"
 )
 
+func TestLoadConfigFromEnv_readsGnosisEnv(t *testing.T) {
+	// Given
+	t.Setenv("GNOSIS_ENABLED", "true")
+	t.Setenv("GNOSIS_SERVICE_URL", "http://gnosis.local")
+	t.Setenv("GNOSIS_SERVICE_TOKEN", "gnosis-token")
+	t.Setenv("GNOSIS_TENANT_ID", "tenant-1")
+
+	// When
+	config := LoadConfigFromEnv()
+
+	// Then
+	if !config.Enabled || config.BaseURL != "http://gnosis.local" || config.Token != "gnosis-token" || config.TenantID != "tenant-1" {
+		t.Fatalf("expected gnosis env config, got %#v", config)
+	}
+}
+
 func TestClient_GetContext_sendsScopedAuthorizedRequest(t *testing.T) {
 	// Given
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +150,7 @@ func TestClient_GetMemoryContext_decodesOptionalMemoryTypeSections(t *testing.T)
 func TestClient_Noops_whenDisabled(t *testing.T) {
 	// Given
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatalf("disabled client should not call agents-memory")
+		t.Fatalf("disabled client should not call gnosis")
 	}))
 	t.Cleanup(server.Close)
 	client := NewClient(Config{Enabled: false, BaseURL: server.URL, Token: "test-token"}, server.Client())
@@ -174,7 +190,7 @@ func TestClient_Noops_whenDisabled(t *testing.T) {
 func TestClient_Noops_whenTokenMissing(t *testing.T) {
 	// Given
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Fatalf("client without token should not call agents-memory")
+		t.Fatalf("client without token should not call gnosis")
 	}))
 	t.Cleanup(server.Close)
 	client := NewClient(Config{Enabled: true, BaseURL: server.URL}, server.Client())
@@ -223,7 +239,7 @@ func TestClient_GetContext_sanitizesErrorResponseBody(t *testing.T) {
 	if strings.Contains(err.Error(), "secret token scope details") {
 		t.Fatalf("expected sanitized error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "agents-memory returned 403") {
+	if !strings.Contains(err.Error(), "gnosis returned 403") {
 		t.Fatalf("expected status code in error, got %v", err)
 	}
 }

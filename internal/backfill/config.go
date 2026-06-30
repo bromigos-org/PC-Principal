@@ -47,11 +47,11 @@ func DefaultConfig() Config {
 func LoadConfigFromEnv() Config {
 	config := DefaultConfig()
 	config.Enabled = strings.EqualFold(os.Getenv("DISCORD_HISTORY_BACKFILL_ENABLED"), "true")
-	config.TenantID = envString("MEMORY_TENANT_ID", config.TenantID)
+	config.TenantID = envString("GNOSIS_TENANT_ID", config.TenantID)
 	config.AgentID = envString("DISCORD_HISTORY_BACKFILL_AGENT_ID", config.AgentID)
 	config.MaxChannelsPerRun = envInt("DISCORD_HISTORY_BACKFILL_MAX_CHANNELS", config.MaxChannelsPerRun)
 	config.MaxMessagesPerChannel = envInt("DISCORD_HISTORY_BACKFILL_MAX_MESSAGES_PER_CHANNEL", config.MaxMessagesPerChannel)
-	config.MemoryBatchSize = envInt("DISCORD_HISTORY_BACKFILL_MEMORY_BATCH_SIZE", config.MemoryBatchSize)
+	config.MemoryBatchSize = envInt("DISCORD_HISTORY_BACKFILL_GNOSIS_BATCH_SIZE", config.MemoryBatchSize)
 	config.RequestDelay = envDuration("DISCORD_HISTORY_BACKFILL_REQUEST_DELAY", config.RequestDelay)
 	config.Backoff = envDuration("DISCORD_HISTORY_BACKFILL_BACKOFF", config.Backoff)
 	config.MaxAttempts = envInt("DISCORD_HISTORY_BACKFILL_MAX_ATTEMPTS", config.MaxAttempts)

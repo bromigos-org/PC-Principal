@@ -191,10 +191,10 @@ func TestNormalizeTopologyEventsSatisfyAgentsMemoryRequiredFields(t *testing.T) 
 	// Then
 	for _, event := range events {
 		if event.Actor.ID == "" {
-			t.Fatalf("expected topology event actor id for agents-memory validation, got %#v", event)
+			t.Fatalf("expected topology event actor id for gnosis validation, got %#v", event)
 		}
 		if event.Scope.TenantID == "" || event.Scope.AgentID == "" || event.Scope.SessionID == "" || event.Scope.UserID == "" || event.Scope.SpaceID == "" {
-			t.Fatalf("expected complete topology scope for agents-memory validation, got %#v", event)
+			t.Fatalf("expected complete topology scope for gnosis validation, got %#v", event)
 		}
 	}
 }

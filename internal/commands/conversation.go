@@ -81,7 +81,7 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 	trace := startConversationReasoningTrace(ctx, m, scope)
 	trace.recordStep(ctx, "retrieve_context", "Retrieved scoped memory and reviewed skill context.", memory.JsonObject{"stage": "context"})
 	memoryPrompt := conversationMemoryPrompt(ctx, conversationMemoryPromptRequest{scope: scope, query: userMessage})
-	trace.recordToolCall(ctx, "agents_memory.memory_context", memoryPrompt.traceStatus(), memory.JsonObject{
+	trace.recordToolCall(ctx, "gnosis.memory_context", memoryPrompt.traceStatus(), memory.JsonObject{
 		"graph_limit":           graphContextLimit,
 		"include_graph":         true,
 		"include_long_term":     true,
@@ -96,9 +96,9 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 		AgentID:  scope.AgentID,
 	})
 	if err != nil {
-		log.Printf("agents-memory skill list failed: %v", err)
+		log.Printf("gnosis skill list failed: %v", err)
 	}
-	trace.recordToolCall(ctx, "agents_memory.skills_list", traceStatus(err), memory.JsonObject{"agent_id": scope.AgentID}, memory.JsonObject{"skills_count": len(skills.Skills)})
+	trace.recordToolCall(ctx, "gnosis.skills_list", traceStatus(err), memory.JsonObject{"agent_id": scope.AgentID}, memory.JsonObject{"skills_count": len(skills.Skills)})
 	requestHistory := historyWithMemoryContext(history, memoryPrompt, skills.Skills)
 	trace.recordStep(ctx, "prepare_context", "Prepared scoped memory, graph, and reviewed skill context.", memory.JsonObject{
 		"message_count": len(requestHistory),
@@ -123,16 +123,16 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 	}
 	trace.recordToolCall(ctx, "discord.message_send", "success", memory.JsonObject{"channel_id": m.ChannelID}, memory.JsonObject{"sent": true})
 	if err := conversationMemory.AddMessage(ctx, memory.Message{Scope: scope, Role: memory.RoleUser, Content: userMessage}); err != nil {
-		trace.recordToolCall(ctx, "agents_memory.message_write.user", "error", memory.JsonObject{"role": string(memory.RoleUser)}, nil)
-		log.Printf("agents-memory user write failed: %v", err)
+		trace.recordToolCall(ctx, "gnosis.message_write.user", "error", memory.JsonObject{"role": string(memory.RoleUser)}, nil)
+		log.Printf("gnosis user write failed: %v", err)
 	} else {
-		trace.recordToolCall(ctx, "agents_memory.message_write.user", "success", memory.JsonObject{"role": string(memory.RoleUser)}, memory.JsonObject{"stored": true})
+		trace.recordToolCall(ctx, "gnosis.message_write.user", "success", memory.JsonObject{"role": string(memory.RoleUser)}, memory.JsonObject{"stored": true})
 	}
 	if err := conversationMemory.AddMessage(ctx, memory.Message{Scope: scope, Role: memory.RoleAssistant, Content: reply}); err != nil {
-		trace.recordToolCall(ctx, "agents_memory.message_write.assistant", "error", memory.JsonObject{"role": string(memory.RoleAssistant)}, nil)
-		log.Printf("agents-memory assistant write failed: %v", err)
+		trace.recordToolCall(ctx, "gnosis.message_write.assistant", "error", memory.JsonObject{"role": string(memory.RoleAssistant)}, nil)
+		log.Printf("gnosis assistant write failed: %v", err)
 	} else {
-		trace.recordToolCall(ctx, "agents_memory.message_write.assistant", "success", memory.JsonObject{"role": string(memory.RoleAssistant)}, memory.JsonObject{"stored": true})
+		trace.recordToolCall(ctx, "gnosis.message_write.assistant", "success", memory.JsonObject{"role": string(memory.RoleAssistant)}, memory.JsonObject{"stored": true})
 	}
 	trace.complete(ctx, "answered", true, memory.JsonObject{"stage": "complete"})
 	return nil

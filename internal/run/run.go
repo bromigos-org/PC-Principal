@@ -149,7 +149,7 @@ func ingestLiveMessage(message *discordgo.MessageCreate) {
 	ctx := context.Background()
 	normalizer := discordevent.New(discordevent.Config{TenantID: liveMemoryTenantID, AgentID: pcPrincipalAgentID, SourceMarker: discordevent.SourceMarkerLive, ObservedAt: time.Now().UTC(), AttachmentCopy: liveAttachmentCopyConfig})
 	if _, err := liveMemory.IngestEvents(ctx, normalizer.NormalizeMessageCreateWithContext(ctx, message.Message)); err != nil {
-		log.Printf("agents-memory live message ingest failed: %v", err)
+		log.Printf("gnosis live message ingest failed: %v", err)
 	}
 }
 
@@ -244,7 +244,7 @@ func ingestLiveTopology(label string, events []memory.ClientEvent) {
 			end = len(events)
 		}
 		if _, err := liveMemory.IngestEvents(context.Background(), events[start:end]); err != nil {
-			log.Printf("agents-memory live %s ingest failed: %v", label, err)
+			log.Printf("gnosis live %s ingest failed: %v", label, err)
 		}
 	}
 }

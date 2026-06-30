@@ -27,3 +27,17 @@ func TestConfig_withDefaults_preserves_zero_as_unlimited_for_traversal_caps(t *t
 		t.Fatalf("expected zero traversal caps to mean unlimited, got %#v", got)
 	}
 }
+
+func TestLoadConfigFromEnv_readsGnosisBackfillBatch(t *testing.T) {
+	// Given
+	t.Setenv("GNOSIS_TENANT_ID", "tenant-1")
+	t.Setenv("DISCORD_HISTORY_BACKFILL_GNOSIS_BATCH_SIZE", "17")
+
+	// When
+	config := LoadConfigFromEnv()
+
+	// Then
+	if config.TenantID != "tenant-1" || config.MemoryBatchSize != 17 {
+		t.Fatalf("expected gnosis backfill env config, got %#v", config)
+	}
+}

@@ -90,10 +90,10 @@ type messageWriteResponse struct {
 
 func LoadConfigFromEnv() Config {
 	return Config{
-		Enabled:  strings.EqualFold(os.Getenv("MEMORY_ENABLED"), "true"),
-		BaseURL:  os.Getenv("MEMORY_SERVICE_URL"),
-		Token:    os.Getenv("MEMORY_SERVICE_TOKEN"),
-		TenantID: getenvDefault("MEMORY_TENANT_ID", defaultTenant),
+		Enabled:  strings.EqualFold(os.Getenv("GNOSIS_ENABLED"), "true"),
+		BaseURL:  os.Getenv("GNOSIS_SERVICE_URL"),
+		Token:    os.Getenv("GNOSIS_SERVICE_TOKEN"),
+		TenantID: getenvDefault("GNOSIS_TENANT_ID", defaultTenant),
 	}
 }
 
@@ -232,7 +232,7 @@ func (c *HTTPClient) post(ctx context.Context, path string, body []byte) ([]byte
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, classifyStatus("agents-memory request", resp.StatusCode)
+		return nil, classifyStatus("gnosis request", resp.StatusCode)
 	}
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

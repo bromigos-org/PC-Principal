@@ -31,7 +31,7 @@ type Error struct {
 
 func (e *Error) Error() string {
 	if e.StatusCode > 0 {
-		return fmt.Sprintf("%s: agents-memory returned %d (%s)", e.Operation, e.StatusCode, e.Kind)
+		return fmt.Sprintf("%s: gnosis returned %d (%s)", e.Operation, e.StatusCode, e.Kind)
 	}
 	if e.Err != nil {
 		return fmt.Sprintf("%s: %s: %v", e.Operation, e.Kind, e.Err)

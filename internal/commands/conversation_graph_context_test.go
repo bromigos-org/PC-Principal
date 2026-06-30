@@ -45,8 +45,8 @@ func TestMentionConversationIncludesScopedGraphContext(t *testing.T) {
 	if !memoryCall.IncludeShortTerm || !memoryCall.IncludeLongTerm || !memoryCall.IncludeReasoning || !memoryCall.IncludeGraph {
 		t.Fatalf("expected combined memory request to include all reviewed context sources, got %#v", memoryCall)
 	}
-	if memoryCall.Scope.Visibility != memory.VisibilityChannel || memoryCall.Scope.GuildID != "guild-1" || memoryCall.Scope.ChannelID != "channel-1" {
-		t.Fatalf("expected channel-scoped memory request, got %#v", memoryCall.Scope)
+	if memoryCall.Scope.Visibility != memory.VisibilityGuild || memoryCall.Scope.GuildID != "guild-1" || memoryCall.Scope.ChannelID != "" {
+		t.Fatalf("expected guild-scoped memory request, got %#v", memoryCall.Scope)
 	}
 	joinedPrompt := assistantPromptText(assistant.messages)
 	for _, want := range []string{"Recent Dragonfly conversation history:", "Relevant reviewed memory context:", "Long-term recall: blackflame likes homelab memory", "Graph fact: #general discussed Dragonfly yesterday"} {
@@ -126,7 +126,7 @@ func TestMentionConversationContinuesWhenGraphContextFails(t *testing.T) {
 	}
 }
 
-func TestMentionConversationDoesNotLeakOtherChannelGraphContext(t *testing.T) {
+func TestMentionConversationAllowsSameGuildGraphContext(t *testing.T) {
 	// Given
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
 	memoryClient := &fakeMemoryClient{memoryContext: memory.MemoryContextResponse{Sections: []memory.MemoryContextSection{{Source: "graph", Content: "Graph fact: sibling channel secret"}}}}
@@ -151,8 +151,8 @@ func TestMentionConversationDoesNotLeakOtherChannelGraphContext(t *testing.T) {
 		t.Fatalf("expected one combined memory context call, got %d", len(memoryClient.memoryContextCalls))
 	}
 	requestScope := memoryClient.memoryContextCalls[0].Scope
-	if requestScope.SessionID != "guild:guild-1:channel:channel-1" || requestScope.ChannelID != "channel-1" || requestScope.Visibility != memory.VisibilityChannel {
-		t.Fatalf("expected graph request to stay in current channel scope, got %#v", requestScope)
+	if requestScope.SessionID != "guild:guild-1" || requestScope.ChannelID != "" || requestScope.Visibility != memory.VisibilityGuild {
+		t.Fatalf("expected graph request to use guild memory scope, got %#v", requestScope)
 	}
 }
 
@@ -178,15 +178,15 @@ func TestConversationMemoryScopeSeparatesDMFromGuild(t *testing.T) {
 	if dmScope.Visibility != memory.VisibilityPrivateUser || dmScope.GuildID != "" || dmScope.ChannelID != "dm-channel-1" || dmScope.SessionID != "dm:dm-channel-1" {
 		t.Fatalf("expected DM scope to stay private-user only, got %#v", dmScope)
 	}
-	if guildScope.Visibility != memory.VisibilityChannel || guildScope.GuildID != "guild-1" || guildScope.ChannelID != "channel-1" || guildScope.SessionID != "guild:guild-1:channel:channel-1" {
-		t.Fatalf("expected guild scope to stay channel-bound, got %#v", guildScope)
+	if guildScope.Visibility != memory.VisibilityGuild || guildScope.GuildID != "guild-1" || guildScope.ChannelID != "" || guildScope.SessionID != "guild:guild-1" {
+		t.Fatalf("expected guild scope to use guild memory boundary, got %#v", guildScope)
 	}
 	if dmScope.SpaceID == guildScope.SpaceID || dmScope.SessionID == guildScope.SessionID {
 		t.Fatalf("expected DM and guild scopes to be isolated, got dm=%#v guild=%#v", dmScope, guildScope)
 	}
 }
 
-func TestConversationMemoryScopeSeparatesGuildChannels(t *testing.T) {
+func TestConversationMemoryScopeSharesSameGuildChannels(t *testing.T) {
 	// Given
 	firstChannelMessage := &discordgo.MessageCreate{Message: &discordgo.Message{
 		ID:        "message-first",
@@ -206,10 +206,10 @@ func TestConversationMemoryScopeSeparatesGuildChannels(t *testing.T) {
 	secondScope := conversationMemoryScope(secondChannelMessage)
 
 	// Then
-	if firstScope.SessionID != "guild:guild-1:channel:channel-1" || secondScope.SessionID != "guild:guild-1:channel:channel-2" {
-		t.Fatalf("expected channel-specific session ids, got first=%#v second=%#v", firstScope, secondScope)
+	if firstScope.SessionID != "guild:guild-1" || secondScope.SessionID != "guild:guild-1" {
+		t.Fatalf("expected guild-level session ids, got first=%#v second=%#v", firstScope, secondScope)
 	}
-	if firstScope.SessionID == secondScope.SessionID || firstScope.ChannelID == secondScope.ChannelID {
-		t.Fatalf("expected same-guild channels to stay isolated, got first=%#v second=%#v", firstScope, secondScope)
+	if firstScope.ChannelID != "" || secondScope.ChannelID != "" || firstScope.Visibility != memory.VisibilityGuild || secondScope.Visibility != memory.VisibilityGuild {
+		t.Fatalf("expected same-guild channels to share guild memory scope, got first=%#v second=%#v", firstScope, secondScope)
 	}
 }

@@ -35,8 +35,8 @@ func TestMentionConversation_adds_recalled_memory_to_llm_prompt(t *testing.T) {
 	if len(memoryClient.memoryContextCalls) != 1 {
 		t.Fatalf("expected one combined memory query, got %d", len(memoryClient.memoryContextCalls))
 	}
-	if memoryClient.memoryContextCalls[0].Scope.Visibility != memory.VisibilityChannel || memoryClient.memoryContextCalls[0].Scope.AgentID != "pc-principal" {
-		t.Fatalf("expected PC Principal channel memory scope, got %#v", memoryClient.memoryContextCalls[0].Scope)
+	if memoryClient.memoryContextCalls[0].Scope.Visibility != memory.VisibilityGuild || memoryClient.memoryContextCalls[0].Scope.AgentID != "pc-principal" {
+		t.Fatalf("expected PC Principal guild memory scope, got %#v", memoryClient.memoryContextCalls[0].Scope)
 	}
 	if !strings.Contains(assistantPromptText(assistant.messages), "blackflame likes expansive graph memory") {
 		t.Fatalf("expected recalled memory in assistant prompt, got %#v", assistant.messages)

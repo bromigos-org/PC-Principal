@@ -56,7 +56,9 @@ func (w Worker) Run(ctx context.Context) (Summary, error) {
 		if err := w.ingestGuildTopology(ctx, guild.ID, channels, threads); err != nil {
 			return summary, err
 		}
-		for _, channel := range textHistoryChannels(append(channels, threads...)) {
+		guildChannels := channelsWithGuildID(guild.ID, channels)
+		guildThreads := channelsWithGuildID(guild.ID, threads)
+		for _, channel := range textHistoryChannels(append(guildChannels, guildThreads...)) {
 			if w.reachedChannelLimit(summary.ChannelsVisited) {
 				return summary, nil
 			}
@@ -93,7 +95,7 @@ func (w Worker) backfillChannel(ctx context.Context, channel *discordgo.Channel)
 			return 1, 0, ingested, nil
 		}
 		oldestID := messages[len(messages)-1].ID
-		if err := w.ingestMessages(ctx, messages); err != nil {
+		if err := w.ingestMessages(ctx, channel.GuildID, messages); err != nil {
 			return 1, 0, ingested, fmt.Errorf("ingest channel %s messages: %w", channel.ID, err)
 		}
 		if err := w.deps.Cursors.Save(ctx, key, oldestID); err != nil {
@@ -122,11 +124,13 @@ func (w Worker) fetchMessages(ctx context.Context, channelID string, limit int, 
 	return messages, err
 }
 
-func (w Worker) ingestMessages(ctx context.Context, messages []*discordgo.Message) error {
+func (w Worker) ingestMessages(ctx context.Context, guildID string, messages []*discordgo.Message) error {
 	normalizer := discordevent.New(discordevent.Config{TenantID: w.config.TenantID, AgentID: w.config.AgentID, SourceMarker: discordevent.SourceMarkerBackfill, ObservedAt: time.Now().UTC()})
 	events := make([]memory.ClientEvent, 0, len(messages))
 	for _, message := range messages {
-		events = append(events, normalizer.NormalizeMessageCreate(message)...)
+		messageCopy := *message
+		messageCopy.GuildID = guildID
+		events = append(events, normalizer.NormalizeMessageCreate(&messageCopy)...)
 	}
 	return w.ingestEvents(ctx, events)
 }

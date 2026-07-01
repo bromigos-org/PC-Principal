@@ -48,11 +48,21 @@ func startupGuild(s *discordgo.Session, readyGuild *discordgo.Guild) (*discordgo
 		return nil, err
 	}
 	guild := *readyGuild
-	guild.Channels = channels
-	guild.Threads = threads.Threads
+	guild.Channels = startupChannelsWithGuildID(readyGuild.ID, channels)
+	guild.Threads = startupChannelsWithGuildID(readyGuild.ID, threads.Threads)
 	guild.Roles = roles
 	guild.Members = members
 	return &guild, nil
+}
+
+func startupChannelsWithGuildID(guildID string, channels []*discordgo.Channel) []*discordgo.Channel {
+	result := make([]*discordgo.Channel, 0, len(channels))
+	for _, channel := range channels {
+		channelCopy := *channel
+		channelCopy.GuildID = guildID
+		result = append(result, &channelCopy)
+	}
+	return result
 }
 
 func startupGuildMembers(s *discordgo.Session, guildID string) ([]*discordgo.Member, error) {

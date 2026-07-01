@@ -69,6 +69,37 @@ func TestIngestStartupSnapshot_fetches_rest_topology_when_ready_guild_is_partial
 	}
 }
 
+func TestIngestStartupSnapshot_trusts_ready_guild_id_when_rest_channel_guild_id_is_wrong(t *testing.T) {
+	// Given
+	memoryClient := &fakeLiveMemoryClient{}
+	configureLiveMessageIngestion(memoryClient, "tenant-1")
+	t.Cleanup(func() { configureLiveMessageIngestion(memory.NewClient(memory.Config{}, nil), "bromigos") })
+	s := runSession(t)
+	guild := &discordgo.Guild{
+		ID: "guild-1",
+		Channels: []*discordgo.Channel{
+			{ID: "channel-1", GuildID: "wrong-guild", Name: "general", Type: discordgo.ChannelTypeGuildText},
+		},
+		Threads: []*discordgo.Channel{
+			{ID: "thread-1", GuildID: "channel-1", Name: "thread", ParentID: "channel-1", Type: discordgo.ChannelTypeGuildPublicThread},
+		},
+	}
+	s.Client = topologySnapshotRESTClient(t, guild)
+
+	// When
+	ingestStartupSnapshot(s, &discordgo.Ready{Guilds: []*discordgo.Guild{{ID: guild.ID}}})
+
+	// Then
+	channelEvent := channelEventByID(memoryClient.events, "channel-1")
+	if channelEvent.Payload["guild_id"] != "guild-1" || channelEvent.Scope.GuildID != "guild-1" || channelEvent.Discord.GuildID != "guild-1" {
+		t.Fatalf("expected startup channel topology to trust Ready guild ID, got %#v", channelEvent)
+	}
+	threadEvent := eventByType(memoryClient.events, memory.EventTypeThreadCreated)
+	if threadEvent.Payload["guild_id"] != "guild-1" || threadEvent.Scope.GuildID != "guild-1" || threadEvent.Discord.GuildID != "guild-1" {
+		t.Fatalf("expected startup thread topology to trust Ready guild ID, got %#v", threadEvent)
+	}
+}
+
 func channelEventByID(events []memory.ClientEvent, channelID string) memory.ClientEvent {
 	for _, event := range events {
 		if event.EventType == memory.EventTypeChannelCreated && event.Subject.ID == channelID {

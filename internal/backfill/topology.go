@@ -23,12 +23,14 @@ func (w Worker) guildTopology(ctx context.Context, guildID string) ([]*discordgo
 }
 
 func (w Worker) ingestGuildTopology(ctx context.Context, guildID string, channels []*discordgo.Channel, threads []*discordgo.Channel) error {
-	normalizer := discordevent.New(discordevent.Config{TenantID: w.config.TenantID, AgentID: w.config.AgentID, SourceMarker: discordevent.SourceMarkerBackfill, ObservedAt: time.Now().UTC(), Snapshot: discordevent.Snapshot{Channels: channelMap(channels, threads)}})
-	events := make([]memory.ClientEvent, 0, len(channels)+len(threads))
-	for _, channel := range channels {
+	guildChannels := channelsWithGuildID(guildID, channels)
+	guildThreads := channelsWithGuildID(guildID, threads)
+	normalizer := discordevent.New(discordevent.Config{TenantID: w.config.TenantID, AgentID: w.config.AgentID, SourceMarker: discordevent.SourceMarkerBackfill, ObservedAt: time.Now().UTC(), Snapshot: discordevent.Snapshot{Channels: channelMap(guildChannels, guildThreads)}})
+	events := make([]memory.ClientEvent, 0, len(guildChannels)+len(guildThreads))
+	for _, channel := range guildChannels {
 		events = append(events, normalizer.NormalizeChannelCreate(channel)...)
 	}
-	for _, thread := range threads {
+	for _, thread := range guildThreads {
 		events = append(events, normalizer.NormalizeThreadCreate(thread)...)
 	}
 	roles, err := w.deps.Discord.GuildRoles(ctx, guildID)
@@ -96,6 +98,16 @@ func channelMap(channels []*discordgo.Channel, threads []*discordgo.Channel) map
 	}
 	for _, thread := range threads {
 		result[thread.ID] = thread
+	}
+	return result
+}
+
+func channelsWithGuildID(guildID string, channels []*discordgo.Channel) []*discordgo.Channel {
+	result := make([]*discordgo.Channel, 0, len(channels))
+	for _, channel := range channels {
+		channelCopy := *channel
+		channelCopy.GuildID = guildID
+		result = append(result, &channelCopy)
 	}
 	return result
 }

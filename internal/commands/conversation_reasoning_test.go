@@ -46,6 +46,16 @@ func TestMentionConversationRecordsSuccessfulReasoningTrace(t *testing.T) {
 	if len(memoryClient.reasoningSteps) == 0 || len(memoryClient.toolCalls) == 0 {
 		t.Fatalf("expected trace steps and tool calls, got steps=%d tools=%d", len(memoryClient.reasoningSteps), len(memoryClient.toolCalls))
 	}
+	for _, step := range memoryClient.reasoningSteps {
+		if step.Scope.AgentID != "pc-principal" || step.Scope.Visibility != memory.VisibilityGuild || step.Scope.GuildID != "guild-1" {
+			t.Fatalf("expected scoped reasoning step, got %#v", step.Scope)
+		}
+	}
+	for _, call := range memoryClient.toolCalls {
+		if call.Scope.AgentID != "pc-principal" || call.Scope.Visibility != memory.VisibilityGuild || call.Scope.GuildID != "guild-1" {
+			t.Fatalf("expected scoped reasoning tool call, got %#v", call.Scope)
+		}
+	}
 	for _, want := range []string{
 		"gnosis.memory_context",
 		"gnosis.skills_list",
@@ -62,6 +72,9 @@ func TestMentionConversationRecordsSuccessfulReasoningTrace(t *testing.T) {
 		t.Fatalf("expected one completed reasoning trace, got %d", len(memoryClient.completedTraces))
 	}
 	completed := memoryClient.completedTraces[0]
+	if completed.Scope.AgentID != "pc-principal" || completed.Scope.Visibility != memory.VisibilityGuild || completed.Scope.GuildID != "guild-1" {
+		t.Fatalf("expected scoped reasoning completion, got %#v", completed.Scope)
+	}
 	if completed.Success == nil || !*completed.Success || completed.Outcome != "answered" {
 		t.Fatalf("expected successful completion, got %#v", completed)
 	}

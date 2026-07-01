@@ -10,6 +10,7 @@ import (
 )
 
 type conversationReasoningTrace struct {
+	scope      memory.Scope
 	traceID    string
 	lastStepID string
 	nextStep   int
@@ -43,7 +44,7 @@ func startConversationReasoningTrace(ctx context.Context, m *discordgo.MessageCr
 	if strings.TrimSpace(response.TraceID) == "" {
 		return conversationReasoningTrace{}
 	}
-	return conversationReasoningTrace{traceID: response.TraceID, nextStep: 1, enabled: true}
+	return conversationReasoningTrace{scope: scope, traceID: response.TraceID, nextStep: 1, enabled: true}
 }
 
 func (t *conversationReasoningTrace) recordStep(ctx context.Context, action string, observation string, metadata memory.JsonObject) {
@@ -51,6 +52,7 @@ func (t *conversationReasoningTrace) recordStep(ctx context.Context, action stri
 		return
 	}
 	response, err := conversationMemory.AddReasoningStep(ctx, memory.ReasoningStepRequest{
+		Scope:       t.scope,
 		TraceID:     t.traceID,
 		Action:      action,
 		Observation: observation,
@@ -70,6 +72,7 @@ func (t *conversationReasoningTrace) recordToolCall(ctx context.Context, toolNam
 		return
 	}
 	request := memory.ReasoningToolCallRequest{
+		Scope:     t.scope,
 		TraceID:   t.traceID,
 		StepID:    t.lastStepID,
 		ToolName:  toolName,
@@ -90,6 +93,7 @@ func (t conversationReasoningTrace) complete(ctx context.Context, outcome string
 		return
 	}
 	if _, err := conversationMemory.CompleteReasoningTrace(ctx, memory.ReasoningTraceCompleteRequest{
+		Scope:    t.scope,
 		TraceID:  t.traceID,
 		Outcome:  outcome,
 		Success:  &success,

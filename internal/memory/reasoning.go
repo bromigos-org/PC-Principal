@@ -27,6 +27,7 @@ type ReasoningTraceStartResponse struct {
 }
 
 type ReasoningStepRequest struct {
+	Scope       Scope      `json:"scope"`
 	TraceID     string     `json:"trace_id"`
 	Action      string     `json:"action,omitempty"`
 	Observation string     `json:"observation,omitempty"`
@@ -41,6 +42,7 @@ type ReasoningStepResponse struct {
 }
 
 type ReasoningToolCallRequest struct {
+	Scope           Scope              `json:"scope"`
 	TraceID         string             `json:"trace_id"`
 	StepID          string             `json:"step_id"`
 	ToolName        string             `json:"tool_name"`
@@ -60,6 +62,7 @@ type ReasoningToolCallResponse struct {
 }
 
 type ReasoningTraceCompleteRequest struct {
+	Scope    Scope      `json:"scope"`
 	TraceID  string     `json:"trace_id"`
 	Outcome  string     `json:"outcome,omitempty"`
 	Success  *bool      `json:"success,omitempty"`

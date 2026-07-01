@@ -73,17 +73,34 @@ func TestHTTPClientReasoningLifecyclePaths(t *testing.T) {
 			}
 			_, _ = w.Write([]byte(`{"trace_id":"trace-1","session_id":"session-1","task":"answer safely"}`))
 		case "/v1/reasoning/traces/trace-1/steps":
+			var body ReasoningStepRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode reasoning step request: %v", err)
+			}
+			if body.Scope.AgentID != "pc-principal" || body.Scope.Visibility != VisibilityChannel {
+				t.Fatalf("expected scoped reasoning step request, got %#v", body.Scope)
+			}
 			_, _ = w.Write([]byte(`{"step_id":"step-1","trace_id":"trace-1","step_number":1}`))
 		case "/v1/reasoning/steps/step-1/tool-calls":
 			var body ReasoningToolCallRequest
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatalf("decode tool call request: %v", err)
 			}
+			if body.Scope.AgentID != "pc-principal" || body.Scope.Visibility != VisibilityChannel {
+				t.Fatalf("expected scoped reasoning tool call request, got %#v", body.Scope)
+			}
 			if body.ToolName != "memory.search" || body.Arguments["password"] != "placeholder" || body.Result != "redacted placeholder" {
 				t.Fatalf("expected inert tool payload, got %#v", body)
 			}
 			_, _ = w.Write([]byte(`{"tool_call_id":"tool-1","trace_id":"trace-1","step_id":"step-1"}`))
 		case "/v1/reasoning/traces/trace-1/complete":
+			var body ReasoningTraceCompleteRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode reasoning complete request: %v", err)
+			}
+			if body.Scope.AgentID != "pc-principal" || body.Scope.Visibility != VisibilityChannel {
+				t.Fatalf("expected scoped reasoning complete request, got %#v", body.Scope)
+			}
 			_, _ = w.Write([]byte(`{"trace_id":"trace-1","success":true,"outcome":"answered","completed_at":"2026-06-28T00:00:00Z"}`))
 		case "/v1/reasoning/context":
 			_, _ = w.Write([]byte(`{"context":"No similar reasoning traces found.","traces":[{"trace_id":"trace-1"}]}`))
@@ -99,7 +116,7 @@ func TestHTTPClientReasoningLifecyclePaths(t *testing.T) {
 	trace, traceErr := client.StartReasoningTrace(context.Background(), testReasoningTraceStartRequest())
 	step, stepErr := client.AddReasoningStep(context.Background(), testReasoningStepRequest())
 	toolCall, toolErr := client.RecordReasoningToolCall(context.Background(), testReasoningToolCallRequest())
-	complete, completeErr := client.CompleteReasoningTrace(context.Background(), ReasoningTraceCompleteRequest{TraceID: "trace-1", Outcome: "answered", Success: &success, Metadata: JsonObject{"result": "ok"}})
+	complete, completeErr := client.CompleteReasoningTrace(context.Background(), ReasoningTraceCompleteRequest{Scope: testScope(), TraceID: "trace-1", Outcome: "answered", Success: &success, Metadata: JsonObject{"result": "ok"}})
 	reasoningContext, contextErr := client.GetReasoningContext(context.Background(), testReasoningContextRequest())
 
 	// Then
@@ -175,6 +192,7 @@ func testReasoningTraceStartRequest() ReasoningTraceStartRequest {
 
 func testReasoningStepRequest() ReasoningStepRequest {
 	return ReasoningStepRequest{
+		Scope:       testScope(),
 		TraceID:     "trace-1",
 		Action:      "consult memory",
 		Observation: "memory returned context",
@@ -185,6 +203,7 @@ func testReasoningStepRequest() ReasoningStepRequest {
 
 func testReasoningToolCallRequest() ReasoningToolCallRequest {
 	return ReasoningToolCallRequest{
+		Scope:      testScope(),
 		TraceID:    "trace-1",
 		StepID:     "step-1",
 		ToolName:   "memory.search",

@@ -37,6 +37,9 @@ func TestMentionConversationRecordsSuccessfulReasoningTrace(t *testing.T) {
 		t.Fatalf("expected one reasoning trace start, got %d", len(memoryClient.startedTraces))
 	}
 	started := memoryClient.startedTraces[0]
+	if started.Scope.AgentID != "pc-principal" || started.Scope.Visibility != memory.VisibilityGuild || started.Scope.GuildID != "guild-1" {
+		t.Fatalf("expected scoped reasoning start, got %#v", started.Scope)
+	}
 	if started.TriggeredByMessageID != "message-1" || started.UserIdentifier != "user-1" || started.SessionID != "guild:guild-1" {
 		t.Fatalf("expected trace to reference Discord lifecycle IDs, got %#v", started)
 	}

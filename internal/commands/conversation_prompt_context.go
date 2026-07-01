@@ -25,6 +25,7 @@ type conversationMemoryPromptResult struct {
 	prompt                 string
 	hasShortTerm           bool
 	combinedContextSuccess bool
+	context                memory.MemoryContextResponse
 }
 
 func (result conversationMemoryPromptResult) traceStatus() string {
@@ -46,10 +47,101 @@ func conversationMemoryPrompt(ctx context.Context, request conversationMemoryPro
 		GraphLimit:       graphContextLimit,
 	})
 	if err == nil {
-		return conversationMemoryPromptResult{prompt: combinedMemoryPrompt(combined), hasShortTerm: hasShortTermMemorySection(combined), combinedContextSuccess: true}
+		return conversationMemoryPromptResult{prompt: combinedMemoryPrompt(combined), hasShortTerm: hasShortTermMemorySection(combined), combinedContextSuccess: true, context: combined}
 	}
 	log.Printf("gnosis combined context recall failed: %v", err)
 	return conversationMemoryPromptResult{}
+}
+
+type channelActivityFact struct {
+	rank            int
+	channelName     string
+	messageCount    int
+	userDisplayName string
+}
+
+func channelActivityReply(response memory.MemoryContextResponse) string {
+	facts := channelActivityFacts(response)
+	if len(facts) == 0 {
+		return ""
+	}
+	if len(facts) > 5 {
+		facts = facts[:5]
+	}
+	lines := make([]string, 0, len(facts)+1)
+	lines = append(lines, facts[0].userDisplayName+"'s top active channels:")
+	for _, fact := range facts {
+		messageLabel := "messages"
+		if fact.messageCount == 1 {
+			messageLabel = "message"
+		}
+		lines = append(lines, fmt.Sprintf("%d. #%s - %d %s", fact.rank, fact.channelName, fact.messageCount, messageLabel))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func channelActivityFacts(response memory.MemoryContextResponse) []channelActivityFact {
+	facts := make([]channelActivityFact, 0)
+	for _, section := range response.Sections {
+		for _, raw := range section.Facts {
+			fact, ok := parseChannelActivityFact(raw)
+			if ok {
+				facts = append(facts, fact)
+			}
+		}
+	}
+	sort.Slice(facts, func(i, j int) bool {
+		return facts[i].rank < facts[j].rank
+	})
+	return facts
+}
+
+func parseChannelActivityFact(raw memory.JsonObject) (channelActivityFact, bool) {
+	if factType, ok := raw["type"].(string); !ok || factType != "channel_activity" {
+		return channelActivityFact{}, false
+	}
+	rank, ok := jsonInt(raw["rank"])
+	if !ok {
+		return channelActivityFact{}, false
+	}
+	messageCount, ok := jsonInt(raw["message_count"])
+	if !ok {
+		return channelActivityFact{}, false
+	}
+	channelName, ok := nonEmptyJSONText(raw["channel_name"])
+	if !ok {
+		return channelActivityFact{}, false
+	}
+	userDisplayName, ok := nonEmptyJSONText(raw["user_display_name"])
+	if !ok {
+		return channelActivityFact{}, false
+	}
+	return channelActivityFact{rank: rank, channelName: channelName, messageCount: messageCount, userDisplayName: userDisplayName}, true
+}
+
+func jsonInt(value memory.JsonValue) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case int64:
+		return int(typed), true
+	case float64:
+		if typed != float64(int(typed)) {
+			return 0, false
+		}
+		return int(typed), true
+	default:
+		return 0, false
+	}
+}
+
+func nonEmptyJSONText(value memory.JsonValue) (string, bool) {
+	text, ok := value.(string)
+	if !ok {
+		return "", false
+	}
+	text = strings.TrimSpace(text)
+	return text, text != ""
 }
 
 func historyWithMemoryContext(history []store.Message, memoryPrompt conversationMemoryPromptResult, skills []memory.SkillRecord) []store.Message {

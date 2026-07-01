@@ -156,6 +156,57 @@ func TestMentionConversationAllowsSameGuildGraphContext(t *testing.T) {
 	}
 }
 
+func TestMentionConversationDirectRepliesToChannelActivityFacts(t *testing.T) {
+	// Given
+	assistant := &fakeAssistantClient{reply: "should not be used"}
+	memoryClient := &fakeMemoryClient{memoryContext: memory.MemoryContextResponse{Sections: []memory.MemoryContextSection{{
+		Source: "graph",
+		Facts: []memory.JsonObject{
+			{"type": "channel_activity", "rank": 2, "user_display_name": "BlackDave", "channel_name": "server-suggestion-box", "message_count": 4},
+			{"type": "channel_activity", "rank": 1, "user_display_name": "BlackDave", "channel_name": "💬┃general-chat", "message_count": 247},
+			{"type": "channel_activity", "rank": 3, "user_display_name": "BlackDave", "channel_name": "🎇┃promos", "message_count": 1},
+		},
+	}}}}
+	previousAssistant := assistantClient
+	assistantClient = assistant
+	t.Cleanup(func() { assistantClient = previousAssistant })
+	previousMemory := conversationMemory
+	ConfigureMemory(memoryClient)
+	t.Cleanup(func() { ConfigureMemory(previousMemory) })
+	recorder := &discordMessageRecorder{}
+	s, m := mentionSessionAndMessage(t, mentionToken("bot-1")+" hey what are @BlackDave top 5 most active channels??")
+	s.Client = recorder.httpClient(t)
+
+	// When
+	err := handleMentionConversation(s, m)
+
+	// Then
+	if err != nil {
+		t.Fatalf("expected channel activity conversation to succeed, got %v", err)
+	}
+	if len(memoryClient.memoryContextCalls) != 1 {
+		t.Fatalf("expected one combined memory context call, got %d", len(memoryClient.memoryContextCalls))
+	}
+	if len(assistant.messages) != 0 {
+		t.Fatalf("expected channel activity facts to bypass LLM, got %#v", assistant.messages)
+	}
+	if len(memoryClient.skillCalls) != 0 {
+		t.Fatalf("expected deterministic channel activity reply to skip skill lookup, got %#v", memoryClient.skillCalls)
+	}
+	if len(recorder.sent) != 1 {
+		t.Fatalf("expected one Discord reply, got %#v", recorder.sent)
+	}
+	got := recorder.sent[0].Content
+	for _, want := range []string{"BlackDave's top active channels:", "1. #💬┃general-chat - 247 messages", "2. #server-suggestion-box - 4 messages", "3. #🎇┃promos - 1 message"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected deterministic reply to contain %q, got %q", want, got)
+		}
+	}
+	if strings.Contains(got, "should not be used") {
+		t.Fatalf("expected LLM reply to stay unused, got %q", got)
+	}
+}
+
 func TestConversationMemoryScopeSeparatesDMFromGuild(t *testing.T) {
 	// Given
 	dmMessage := &discordgo.MessageCreate{Message: &discordgo.Message{

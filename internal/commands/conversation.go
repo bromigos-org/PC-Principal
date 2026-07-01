@@ -90,6 +90,34 @@ func handleConversation(s *discordgo.Session, request conversationRequest) error
 		"max_items":             memoryContextLimit,
 		"used_short_term_scope": memoryPrompt.hasShortTerm,
 	}, memory.JsonObject{"prompt_empty": strings.TrimSpace(memoryPrompt.prompt) == ""})
+	if reply := channelActivityReply(memoryPrompt.context); reply != "" {
+		trace.recordStep(ctx, "answer_channel_activity", "Answered channel activity from gnosis graph facts.", memory.JsonObject{"stage": "deterministic_graph"})
+		history = append(history, store.Message{Role: "assistant", Content: reply})
+		if err := store.Save(ctx, key, history); err != nil {
+			trace.complete(ctx, "store_failed", false, memory.JsonObject{"stage": "channel_memory"})
+			return fmt.Errorf("save channel memory: %w", err)
+		}
+		if err := sendDiscordResponse(s, m.ChannelID, reply); err != nil {
+			trace.recordToolCall(ctx, "discord.message_send", "error", memory.JsonObject{"channel_id": m.ChannelID}, nil)
+			trace.complete(ctx, "discord_send_failed", false, memory.JsonObject{"stage": "discord"})
+			return fmt.Errorf("send response: %w", err)
+		}
+		trace.recordToolCall(ctx, "discord.message_send", "success", memory.JsonObject{"channel_id": m.ChannelID}, memory.JsonObject{"sent": true})
+		if err := conversationMemory.AddMessage(ctx, memory.Message{Scope: scope, Role: memory.RoleUser, Content: userMessage}); err != nil {
+			trace.recordToolCall(ctx, "gnosis.message_write.user", "error", memory.JsonObject{"role": string(memory.RoleUser)}, nil)
+			log.Printf("gnosis user write failed: %v", err)
+		} else {
+			trace.recordToolCall(ctx, "gnosis.message_write.user", "success", memory.JsonObject{"role": string(memory.RoleUser)}, memory.JsonObject{"stored": true})
+		}
+		if err := conversationMemory.AddMessage(ctx, memory.Message{Scope: scope, Role: memory.RoleAssistant, Content: reply}); err != nil {
+			trace.recordToolCall(ctx, "gnosis.message_write.assistant", "error", memory.JsonObject{"role": string(memory.RoleAssistant)}, nil)
+			log.Printf("gnosis assistant write failed: %v", err)
+		} else {
+			trace.recordToolCall(ctx, "gnosis.message_write.assistant", "success", memory.JsonObject{"role": string(memory.RoleAssistant)}, memory.JsonObject{"stored": true})
+		}
+		trace.complete(ctx, "answered_channel_activity", true, memory.JsonObject{"stage": "complete", "source": "gnosis_graph"})
+		return nil
+	}
 	skills, err := conversationMemory.ListSkills(ctx, memory.SkillListRequest{
 		TenantID: scope.TenantID,
 		AgentID:  scope.AgentID,

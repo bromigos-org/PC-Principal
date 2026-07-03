@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -22,47 +21,6 @@ func TestLoadConfigFromEnv_readsGnosisEnv(t *testing.T) {
 	// Then
 	if !config.Enabled || config.BaseURL != "http://gnosis.local" || config.Token != "gnosis-token" || config.TenantID != "tenant-1" {
 		t.Fatalf("expected gnosis env config, got %#v", config)
-	}
-}
-
-func TestClient_GetContext_sendsScopedAuthorizedRequest(t *testing.T) {
-	// Given
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/v1/context" {
-			t.Fatalf("expected POST /v1/context, got %s %s", r.Method, r.URL.Path)
-		}
-		if got := r.Header.Get("Authorization"); got != "Bearer test-token" {
-			t.Fatalf("expected bearer token, got %q", got)
-		}
-		var body contextRequest
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			t.Fatalf("decode context request: %v", err)
-		}
-		if body.Query != "what does blackflame like?" || body.Limit != 6 {
-			t.Fatalf("expected query and limit to pass through, got %#v", body)
-		}
-		if body.Scope.AgentID != "pc-principal" || body.Scope.Visibility != VisibilityChannel {
-			t.Fatalf("expected PC Principal channel scope, got %#v", body.Scope)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"context":"blackflame likes homelab memory"}`))
-	}))
-	t.Cleanup(server.Close)
-	client := NewClient(Config{Enabled: true, BaseURL: server.URL, Token: "test-token"}, server.Client())
-
-	// When
-	got, err := client.GetContext(context.Background(), ContextQuery{
-		Scope: testScope(),
-		Query: "what does blackflame like?",
-		Limit: 6,
-	})
-
-	// Then
-	if err != nil {
-		t.Fatalf("expected context request to succeed, got %v", err)
-	}
-	if got != "blackflame likes homelab memory" {
-		t.Fatalf("expected recalled context, got %q", got)
 	}
 }
 
@@ -156,11 +114,6 @@ func TestClient_Noops_whenDisabled(t *testing.T) {
 	client := NewClient(Config{Enabled: false, BaseURL: server.URL, Token: "test-token"}, server.Client())
 
 	// When
-	contextText, contextErr := client.GetContext(context.Background(), ContextQuery{
-		Scope: testScope(),
-		Query: "query",
-		Limit: 4,
-	})
 	messageErr := client.AddMessage(context.Background(), Message{
 		Scope:   testScope(),
 		Role:    RoleUser,
@@ -179,11 +132,11 @@ func TestClient_Noops_whenDisabled(t *testing.T) {
 	usageErr := client.RecordSkillUsage(context.Background(), testSkillUsage())
 
 	// Then
-	if contextErr != nil || messageErr != nil || ingestErr != nil || graphErr != nil || memoryErr != nil || traceErr != nil || stepErr != nil || toolErr != nil || completeErr != nil || reasoningErr != nil || skillsErr != nil || proposalErr != nil || usageErr != nil {
-		t.Fatalf("expected disabled client to no-op, got contextErr=%v messageErr=%v ingestErr=%v graphErr=%v memoryErr=%v traceErr=%v stepErr=%v toolErr=%v completeErr=%v reasoningErr=%v skillsErr=%v proposalErr=%v usageErr=%v", contextErr, messageErr, ingestErr, graphErr, memoryErr, traceErr, stepErr, toolErr, completeErr, reasoningErr, skillsErr, proposalErr, usageErr)
+	if messageErr != nil || ingestErr != nil || graphErr != nil || memoryErr != nil || traceErr != nil || stepErr != nil || toolErr != nil || completeErr != nil || reasoningErr != nil || skillsErr != nil || proposalErr != nil || usageErr != nil {
+		t.Fatalf("expected disabled client to no-op, got messageErr=%v ingestErr=%v graphErr=%v memoryErr=%v traceErr=%v stepErr=%v toolErr=%v completeErr=%v reasoningErr=%v skillsErr=%v proposalErr=%v usageErr=%v", messageErr, ingestErr, graphErr, memoryErr, traceErr, stepErr, toolErr, completeErr, reasoningErr, skillsErr, proposalErr, usageErr)
 	}
-	if contextText != "" || len(ingestResponse.Results) != 0 || graphResponse.Context != "" || len(memoryResponse.Sections) != 0 || traceResponse.TraceID != "" || stepResponse.StepID != "" || toolResponse.ToolCallID != "" || completeResponse.TraceID != "" || reasoningResponse.Context != "" || len(skillsResponse.Skills) != 0 || proposalResponse.ProposalID != "" {
-		t.Fatalf("expected disabled empty responses, got context=%q ingest=%#v graph=%#v memory=%#v trace=%#v step=%#v tool=%#v complete=%#v reasoning=%#v skills=%#v proposal=%#v", contextText, ingestResponse, graphResponse, memoryResponse, traceResponse, stepResponse, toolResponse, completeResponse, reasoningResponse, skillsResponse, proposalResponse)
+	if len(ingestResponse.Results) != 0 || graphResponse.Context != "" || len(memoryResponse.Sections) != 0 || traceResponse.TraceID != "" || stepResponse.StepID != "" || toolResponse.ToolCallID != "" || completeResponse.TraceID != "" || reasoningResponse.Context != "" || len(skillsResponse.Skills) != 0 || proposalResponse.ProposalID != "" {
+		t.Fatalf("expected disabled empty responses, got ingest=%#v graph=%#v memory=%#v trace=%#v step=%#v tool=%#v complete=%#v reasoning=%#v skills=%#v proposal=%#v", ingestResponse, graphResponse, memoryResponse, traceResponse, stepResponse, toolResponse, completeResponse, reasoningResponse, skillsResponse, proposalResponse)
 	}
 }
 
@@ -196,11 +149,6 @@ func TestClient_Noops_whenTokenMissing(t *testing.T) {
 	client := NewClient(Config{Enabled: true, BaseURL: server.URL}, server.Client())
 
 	// When
-	contextText, contextErr := client.GetContext(context.Background(), ContextQuery{
-		Scope: testScope(),
-		Query: "query",
-		Limit: 4,
-	})
 	messageErr := client.AddMessage(context.Background(), Message{
 		Scope:   testScope(),
 		Role:    RoleUser,
@@ -208,39 +156,8 @@ func TestClient_Noops_whenTokenMissing(t *testing.T) {
 	})
 
 	// Then
-	if contextErr != nil || messageErr != nil {
-		t.Fatalf("expected missing token client to no-op, got contextErr=%v messageErr=%v", contextErr, messageErr)
-	}
-	if contextText != "" {
-		t.Fatalf("expected missing token context to be empty, got %q", contextText)
-	}
-}
-
-func TestClient_GetContext_sanitizesErrorResponseBody(t *testing.T) {
-	// Given
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"detail":"secret token scope details"}`))
-	}))
-	t.Cleanup(server.Close)
-	client := NewClient(Config{Enabled: true, BaseURL: server.URL, Token: "test-token"}, server.Client())
-
-	// When
-	_, err := client.GetContext(context.Background(), ContextQuery{
-		Scope: testScope(),
-		Query: "query",
-		Limit: 4,
-	})
-
-	// Then
-	if err == nil {
-		t.Fatal("expected context request to fail")
-	}
-	if strings.Contains(err.Error(), "secret token scope details") {
-		t.Fatalf("expected sanitized error, got %v", err)
-	}
-	if !strings.Contains(err.Error(), "gnosis returned 403") {
-		t.Fatalf("expected status code in error, got %v", err)
+	if messageErr != nil {
+		t.Fatalf("expected missing token client to no-op, got messageErr=%v", messageErr)
 	}
 }
 

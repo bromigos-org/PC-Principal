@@ -32,12 +32,6 @@ type Config struct {
 	TenantID string
 }
 
-type ContextQuery struct {
-	Scope Scope
-	Query string
-	Limit int
-}
-
 type Message struct {
 	Scope   Scope
 	Role    Role
@@ -45,7 +39,6 @@ type Message struct {
 }
 
 type Client interface {
-	GetContext(ctx context.Context, query ContextQuery) (string, error)
 	AddMessage(ctx context.Context, message Message) error
 	IngestEvent(ctx context.Context, event ClientEvent) error
 	IngestEvents(ctx context.Context, events []ClientEvent) (ClientEventBatchResponse, error)
@@ -66,16 +59,6 @@ type HTTPClient struct {
 	baseURL    string
 	token      string
 	enabled    bool
-}
-
-type contextRequest struct {
-	Scope Scope  `json:"scope"`
-	Query string `json:"query"`
-	Limit int    `json:"limit"`
-}
-
-type contextResponse struct {
-	Context string `json:"context"`
 }
 
 type messageWriteRequest struct {
@@ -107,26 +90,6 @@ func NewClient(config Config, httpClient *http.Client) *HTTPClient {
 		token:      config.Token,
 		enabled:    config.Enabled && config.BaseURL != "" && config.Token != "",
 	}
-}
-
-func (c *HTTPClient) GetContext(ctx context.Context, query ContextQuery) (string, error) {
-	if !c.enabled {
-		return "", nil
-	}
-	request := contextRequest{Scope: query.Scope, Query: query.Query, Limit: query.Limit}
-	requestBytes, err := json.Marshal(request)
-	if err != nil {
-		return "", fmt.Errorf("encode context request: %w", err)
-	}
-	responseBytes, err := c.post(ctx, "/v1/context", requestBytes)
-	if err != nil {
-		return "", fmt.Errorf("get memory context: %w", err)
-	}
-	var response contextResponse
-	if err := json.Unmarshal(responseBytes, &response); err != nil {
-		return "", fmt.Errorf("decode context response: %w", err)
-	}
-	return response.Context, nil
 }
 
 func (c *HTTPClient) AddMessage(ctx context.Context, message Message) error {

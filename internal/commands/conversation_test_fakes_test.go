@@ -19,8 +19,6 @@ func (c *fakeAssistantClient) Generate(ctx context.Context, messages []store.Mes
 }
 
 type fakeMemoryClient struct {
-	contextText        string
-	contextErr         error
 	graphText          string
 	graphErr           error
 	memoryContext      memory.MemoryContextResponse
@@ -28,7 +26,6 @@ type fakeMemoryClient struct {
 	skills             []memory.SkillRecord
 	skillsErr          error
 	writeErr           error
-	queries            []memory.ContextQuery
 	graphCalls         []memory.GraphContextRequest
 	memoryContextCalls []memory.MemoryContextRequest
 	skillCalls         []memory.SkillListRequest
@@ -41,11 +38,6 @@ type fakeMemoryClient struct {
 	reasoningSteps     []memory.ReasoningStepRequest
 	toolCalls          []memory.ReasoningToolCallRequest
 	completedTraces    []memory.ReasoningTraceCompleteRequest
-}
-
-func (c *fakeMemoryClient) GetContext(ctx context.Context, query memory.ContextQuery) (string, error) {
-	c.queries = append(c.queries, query)
-	return c.contextText, c.contextErr
 }
 
 func (c *fakeMemoryClient) AddMessage(ctx context.Context, message memory.Message) error {

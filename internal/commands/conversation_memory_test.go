@@ -80,8 +80,8 @@ func TestMentionConversationIncludesCombinedMemoryContextOnce(t *testing.T) {
 	if len(memoryClient.memoryContextCalls) != 1 {
 		t.Fatalf("expected one combined memory call, got %d", len(memoryClient.memoryContextCalls))
 	}
-	if len(memoryClient.queries) != 0 || len(memoryClient.graphCalls) != 0 {
-		t.Fatalf("expected no legacy context calls after combined memory success, got queries=%d graph=%d", len(memoryClient.queries), len(memoryClient.graphCalls))
+	if len(memoryClient.graphCalls) != 0 {
+		t.Fatalf("expected no legacy graph calls after combined memory success, got graph=%d", len(memoryClient.graphCalls))
 	}
 	joinedPrompt := assistantPromptText(assistant.messages)
 	for _, want := range []string{"Relevant reviewed memory context:", "Source: short_term", "recent channel context", "Source: long_term_facts", "blackflame prefers graph memory", "kind=preference", "summary=use combined context", "Reviewed non-executable skills:", "Review memory"} {
@@ -132,7 +132,7 @@ func TestMentionConversation_writes_user_and_assistant_messages_to_memory(t *tes
 func TestMentionConversation_ignores_memory_errors(t *testing.T) {
 	// Given
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
-	memoryClient := &fakeMemoryClient{memoryContextErr: errors.New("combined memory unavailable"), contextErr: errors.New("memory unavailable"), writeErr: errors.New("write failed")}
+	memoryClient := &fakeMemoryClient{memoryContextErr: errors.New("combined memory unavailable"), writeErr: errors.New("write failed")}
 	previousAssistant := assistantClient
 	assistantClient = assistant
 	t.Cleanup(func() { assistantClient = previousAssistant })

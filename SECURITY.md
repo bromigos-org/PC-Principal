@@ -1,21 +1,17 @@
 # Security Policy
 
-## Supported Versions
+## Reporting a vulnerability
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Please report suspected security issues **privately** to
+**contact@bromigos.org**. Do not open a public GitHub issue for a suspected
+vulnerability.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+Include enough detail to reproduce it — the affected version or commit, the
+environment, and the steps involved. We aim to acknowledge reports within a few
+business days and will keep you informed as we investigate and ship a fix.
 
-## Reporting a Vulnerability
+## Supported versions
 
-Use this section to tell people how to report a vulnerability.
-
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+PC-Principal is pre-1.0 and ships continuously from `main`; security fixes land
+on `main` and in the current container image. There is no back-port branch — run
+the latest image to stay current.

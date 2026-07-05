@@ -141,19 +141,13 @@ These should come from Vault or another secret manager. Helm values can wire URL
 - `LITELLM_API_KEY`
 - `DRAGONFLY_ADDR`
 - `GNOSIS_ENABLED`
-- `GNOSIS_EVENTS_ENABLED`
-- `GNOSIS_GRAPH_CONTEXT_ENABLED`
 - `GNOSIS_SERVICE_URL`
 - `GNOSIS_SERVICE_TOKEN`
 - `GNOSIS_TENANT_ID`
 - `DISCORD_HISTORY_BACKFILL_ENABLED`
 - `DISCORD_HISTORY_BACKFILL_GNOSIS_BATCH_SIZE`
-- `DISCORD_BACKFILL_ENABLED`
 - `DISCORD_AMBIENT_REPLIES_ENABLED`
-- `AMBIENT_REPLIES_ENABLED`
-- `DISCORD_ATTACHMENT_METADATA_ENABLED`
 - `DISCORD_ATTACHMENT_COPY_ENABLED`
-- `DISCORD_ATTACHMENT_COPY_POLICY`
 
 ## Local development
 
@@ -189,7 +183,7 @@ PC-Principal is expected to run in Kubernetes with GitOps-driven config changes.
 
 1. Land the code or Helm change in Git.
 2. Let ArgoCD reconcile the `pc-principal` chart.
-3. Enable `GNOSIS_ENABLED`, `GNOSIS_EVENTS_ENABLED`, and related flags only when the matching `gnosis` behavior is ready.
+3. Enable `GNOSIS_ENABLED` and related flags only when the matching `gnosis` behavior is ready.
 4. Keep backfill, ambient replies, and attachment copying off unless the rollout needs them.
 5. Verify command handling, mention conversation flow, and one memory-backed request path.
 

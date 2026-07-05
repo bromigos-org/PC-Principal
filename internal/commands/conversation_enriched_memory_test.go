@@ -65,7 +65,6 @@ func TestMentionConversationContinuesWithoutLegacyContextWhenCombinedContextFail
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
 	memoryClient := &fakeMemoryClient{
 		memoryContextErr: errors.New("combined memory unavailable"),
-		contextText:      "legacy short-term continuity",
 		graphText:        "legacy graph fact",
 	}
 	previousAssistant := assistantClient
@@ -85,8 +84,8 @@ func TestMentionConversationContinuesWithoutLegacyContextWhenCombinedContextFail
 	if err != nil {
 		t.Fatalf("expected conversation to continue without legacy fallback, got %v", err)
 	}
-	if len(memoryClient.memoryContextCalls) != 1 || len(memoryClient.queries) != 0 || len(memoryClient.graphCalls) != 0 {
-		t.Fatalf("expected only combined gnosis memory query, got combined=%d legacy=%d graph=%d", len(memoryClient.memoryContextCalls), len(memoryClient.queries), len(memoryClient.graphCalls))
+	if len(memoryClient.memoryContextCalls) != 1 || len(memoryClient.graphCalls) != 0 {
+		t.Fatalf("expected only combined gnosis memory query, got combined=%d graph=%d", len(memoryClient.memoryContextCalls), len(memoryClient.graphCalls))
 	}
 	joinedPrompt := assistantPromptText(assistant.messages)
 	for _, blocked := range []string{"legacy short-term continuity", "legacy graph fact", "Relevant reviewed memory context:"} {

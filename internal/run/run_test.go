@@ -19,10 +19,6 @@ type fakeLiveMemoryClient struct {
 	batches   [][]memory.ClientEvent
 }
 
-func (c *fakeLiveMemoryClient) GetContext(ctx context.Context, query memory.ContextQuery) (string, error) {
-	return "", nil
-}
-
 func (c *fakeLiveMemoryClient) AddMessage(ctx context.Context, message memory.Message) error {
 	return nil
 }

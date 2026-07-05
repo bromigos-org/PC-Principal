@@ -92,8 +92,8 @@ func TestMentionConversationDoesNotDuplicateGraphAndLongTermSections(t *testing.
 	if strings.Count(joinedPrompt, "Long-term recall: blackflame likes homelab memory") != 1 || strings.Count(joinedPrompt, "Graph fact: #general discussed Dragonfly yesterday") != 1 {
 		t.Fatalf("expected graph and long-term content exactly once, got %#v", assistant.messages)
 	}
-	if len(memoryClient.queries) != 0 || len(memoryClient.graphCalls) != 0 {
-		t.Fatalf("expected no legacy calls after combined memory success, got queries=%d graph=%d", len(memoryClient.queries), len(memoryClient.graphCalls))
+	if len(memoryClient.graphCalls) != 0 {
+		t.Fatalf("expected no legacy graph calls after combined memory success, got graph=%d", len(memoryClient.graphCalls))
 	}
 }
 

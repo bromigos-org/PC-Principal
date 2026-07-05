@@ -91,7 +91,6 @@ func TestMentionConversationRecordsMemoryContextFailureWithoutLegacyFallback(t *
 	assistant := &fakeAssistantClient{reply: "I'm PC, Texas A&M!"}
 	memoryClient := &fakeMemoryClient{
 		memoryContextErr: errors.New("combined context offline detail"),
-		contextText:      "legacy memory context",
 		graphText:        "legacy graph context",
 	}
 	previousAssistant := assistantClient
@@ -111,8 +110,8 @@ func TestMentionConversationRecordsMemoryContextFailureWithoutLegacyFallback(t *
 	if err != nil {
 		t.Fatalf("expected conversation to continue without memory context, got %v", err)
 	}
-	if len(memoryClient.queries) != 0 || len(memoryClient.graphCalls) != 0 {
-		t.Fatalf("expected no legacy memory fallback, got queries=%d graph=%d", len(memoryClient.queries), len(memoryClient.graphCalls))
+	if len(memoryClient.graphCalls) != 0 {
+		t.Fatalf("expected no legacy graph fallback, got graph=%d", len(memoryClient.graphCalls))
 	}
 	if hasReasoningToolCall(memoryClient.toolCalls, "gnosis.memory_context", "success") {
 		t.Fatalf("expected memory context failure not to be recorded as success, got %#v", memoryClient.toolCalls)

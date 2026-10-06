@@ -1,5 +1,15 @@
 # PC-Principal
 
+> **Status: active.** The Bromigos Discord bot runs on the operator's homelab
+> Kubernetes cluster, deployed by GitOps from a private infrastructure repo. CI
+> (`.github/workflows/ci-tests.yml`) runs `go test ./...` on every push and pull
+> request, and on `main` builds and pushes `ghcr.io/bromigos-org/pc-principal`;
+> the cluster picks up each new `:latest` digest automatically, so **merging to
+> `main` deploys**. Its memory backend is
+> [bromigos-org/gnosis](https://github.com/bromigos-org/gnosis). How it fits with
+> the other Bromigos systems is in the network systems map, `docs/SYSTEMS.md` in
+> the private `bromigos-org/platform` repository.
+
 PC-Principal is the Bromigos Discord bot. It handles commands, mention and thread conversations, moderation-adjacent helpers, and memory-aware prompting while talking to `gnosis` over HTTP.
 
 It is intentionally not a Neo4j client and not a Python SDK client.

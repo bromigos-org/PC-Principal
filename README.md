@@ -1,5 +1,9 @@
 # PC-Principal
 
+[![CI](https://github.com/bromigos-org/PC-Principal/actions/workflows/ci-tests.yml/badge.svg?branch=main)](https://github.com/bromigos-org/PC-Principal/actions/workflows/ci-tests.yml)
+[![Go 1.24](https://img.shields.io/badge/go-1.24-00ADD8?logo=go&logoColor=white)](go.mod)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+
 PC-Principal is the Bromigos Discord bot. It is written in Go on top of
 [discordgo](https://github.com/bwmarrin/discordgo).
 
@@ -97,6 +101,24 @@ For each conversation turn the bot does the following.
    Dragonfly instead.
 5. After it replies, the bot writes the user turn and its own turn back to
    gnosis.
+
+```mermaid
+sequenceDiagram
+    participant U as Discord user
+    participant B as PC-Principal
+    participant D as Dragonfly
+    participant G as gnosis
+    participant L as LLM
+
+    U->>B: Mention or thread message
+    B->>D: Read recent history
+    B->>G: POST /v1/memory/context
+    G-->>B: Labeled memory sections
+    B->>L: Prompt with history, memory and skills
+    L-->>B: Reply
+    B->>G: Write both turns and the reasoning trace
+    B-->>U: Reply in Discord
+```
 
 Guild conversations recall with guild scope. That lets the bot answer
 questions about activity in other channels of the same server. Direct messages

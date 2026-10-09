@@ -54,6 +54,10 @@ A mention with no recognized command is treated as a conversation.
 If `ALLOWED_ROLES` is set, only members with one of those roles get a reply
 from mentions and threads. If it is empty, everyone does.
 
+`mpost` and `mdelete` have no permission check of their own. With
+`ALLOWED_ROLES` empty, any member can use them. Set `ALLOWED_ROLES` on any
+server you don't fully trust.
+
 ## How it works
 
 ```mermaid

@@ -81,6 +81,8 @@ func Init() {
 
 	dg.Identify.Intents = discordIntents()
 
+	watchGateway(dg)
+
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
 	if err != nil {
@@ -95,7 +97,7 @@ func Init() {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	dg.Close() // Cleanly close down the Discord session.
+	closeSession(dg, sessionCloseTimeout) // Cleanly close down the Discord session.
 }
 
 func discordIntents() discordgo.Intent {
@@ -252,18 +254,15 @@ func ingestLiveTopology(label string, events []memory.ClientEvent) {
 // onReady is called when the bot is ready to start receiving events.
 func onReady(s *discordgo.Session, event *discordgo.Ready) {
 	log.Println("Bot is ready.")
-	SetDiscordReady(true)
 	ingestStartupSnapshot(s, event)
 }
 
 // onDisconnect is called when the bot disconnects from Discord.
 func onDisconnect(s *discordgo.Session, event *discordgo.Disconnect) {
 	log.Println("Bot disconnected.")
-	SetDiscordReady(false)
 }
 
 // onReconnect is called when the bot reconnects to Discord.
 func onReconnect(s *discordgo.Session, event *discordgo.Connect) {
 	log.Println("Bot reconnected.")
-	SetDiscordReady(true)
 }

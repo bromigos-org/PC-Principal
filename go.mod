@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.9
 	github.com/aws/smithy-go v1.28.9
 	github.com/bwmarrin/discordgo v0.29.1-0.20260214123928-f43dd94faaac
+	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 	github.com/redis/go-redis/v9 v9.23.0
 )
@@ -28,7 +29,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.9 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 )

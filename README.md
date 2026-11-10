@@ -145,6 +145,7 @@ The bot degrades instead of crashing.
 | Dragonfly | History does not persist, and `chat` threads get no follow-ups. Ambient replies and backfill are skipped. |
 | LLM endpoint | The bot replies with an error message in the channel. |
 | `DISCORD_BOT_TOKEN` | The bot logs a warning and exits. |
+| Discord gateway | The library reconnects on its own. If the gateway stays silent for 5 minutes, `/health` fails; after 7 minutes the bot exits so it gets restarted. |
 
 ## Run it locally
 
@@ -292,11 +293,26 @@ out, revert the bot and gnosis together.
 `GET /health` and `GET /healthz` on port 8080 return JSON like this.
 
 ```json
-{"status": "ok", "checks": {"discord": "ready", "dragonfly": "ok"}, "checkedAt": "2026-10-09T17:00:00Z"}
+{"status": "ok", "checks": {"discord": "ready", "dragonfly": "ok", "gateway": "connected, heartbeat ack age 12s"}, "checkedAt": "2026-10-09T17:00:00Z"}
 ```
 
-The HTTP status is always `200` while the process is up. `status` becomes
-`degraded` when Discord is not ready or Dragonfly is unreachable.
+- `200` with `"status": "ok"` while the Discord gateway is connected and
+  Discord keeps acknowledging heartbeats.
+- `200` with `"status": "degraded"` when Dragonfly is unreachable, or when the
+  gateway has gone quiet but is still inside its allowance. A restart fixes
+  neither.
+- `503` with `"status": "unhealthy"` once the gateway has been silent for
+  more than 5 minutes: no connection, or a connection on which Discord has
+  stopped acknowledging heartbeats. Point a Kubernetes liveness probe at
+  `/health` and the pod is restarted when the bot is running but offline.
+
+The bot also watches itself. After 90 seconds of silence it logs the gateway
+state and the heartbeat's age on every check. At 5 minutes it logs a
+goroutine dump, which shows where a reconnect is stuck. At 7 minutes it exits
+with status 1, so a supervisor without a health probe (`docker run
+--restart`, systemd) restarts it too. While all is well it logs one status
+line every 15 minutes, and the Discord library's connect, resume and
+reconnect messages are logged as they happen.
 
 ## Project layout
 
@@ -304,6 +320,7 @@ The HTTP status is always `200` while the process is up. `status` becomes
 |---|---|
 | `cmd/pc-principal/` | Entry point. |
 | `internal/run/` | Startup, Discord event handlers and the health server. |
+| `internal/gateway/` | Watchdog for the Discord gateway connection. |
 | `internal/commands/` | Commands, conversations and prompt assembly. |
 | `internal/memory/` | HTTP client for gnosis. |
 | `internal/discordevent/` | Turns Discord events into gnosis events. |

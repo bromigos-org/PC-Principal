@@ -1,0 +1,546 @@
+=== ping
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-1/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "Pong!",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== ping in capitals with trailing words
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-2/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "Pong!",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== command word second, the bot's mention last
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-3/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "Pong!",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== hey before a command word is conversation
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-4/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:channel-1 -> (nil)
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-4&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-4",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "ping",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-1/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-1",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-1/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-1",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 3,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: ping"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: ping"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 3
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: ping"
+  },
+  {
+    "role": "assistant",
+    "content": "Pong is a command, bro."
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "Pong is a command, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "ping"
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "Pong is a command, bro."
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+redis EXISTS conversation:channel-1 -> 0
+=== help
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-5/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /users/@me/channels
+{
+  "recipient_id": "user-1"
+}
+  -> 200
+discord POST /channels/dm-9/messages
+{
+  "content": "**Available commands:**\n• `@PC-Principal chat \u003ctopic\u003e` — Start a persistent threaded conversation with PC Principal on a topic.\n• `@PC-Principal mdelete \u003cn\u003e` — Delete the last N messages in this channel.\n• `@PC-Principal help` — Display this help message.\n• `@PC-Principal hey \u003cmessage\u003e` — Ask PC Principal something.\n• `@PC-Principal ping` — Test the bot's responsiveness.\n• `@PC-Principal mpost #channel \u003cmessage\u003e` — Post a message to a channel as the bot.\n",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== mdelete without a number
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-6/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, usage: `mdelete \u003cnumber\u003e`",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== mpost without a channel
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-7/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, you need to mention a channel. Like: `mpost #channel your message`",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== help when the DM cannot be sent
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-8/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /users/@me/channels
+{
+  "recipient_id": "user-1"
+}
+  -> 200
+discord POST /channels/dm-9/messages
+{
+  "content": "**Available commands:**\n• `@PC-Principal chat \u003ctopic\u003e` — Start a persistent threaded conversation with PC Principal on a topic.\n• `@PC-Principal mdelete \u003cn\u003e` — Delete the last N messages in this channel.\n• `@PC-Principal help` — Display this help message.\n• `@PC-Principal hey \u003cmessage\u003e` — Ask PC Principal something.\n• `@PC-Principal ping` — Test the bot's responsiveness.\n• `@PC-Principal mpost #channel \u003cmessage\u003e` — Post a message to a channel as the bot.\n",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/dm-9/messages
+{
+  "content": "**Available commands:**\n• `@PC-Principal chat \u003ctopic\u003e` — Start a persistent threaded conversation with PC Principal on a topic.\n• `@PC-Principal mdelete \u003cn\u003e` — Delete the last N messages in this channel.\n• `@PC-Principal help` — Display this help message.\n• `@PC-Principal hey \u003cmessage\u003e` — Ask PC Principal something.\n• `@PC-Principal ping` — Test the bot's responsiveness.\n• `@PC-Principal mpost #channel \u003cmessage\u003e` — Post a message to a channel as the bot.\n",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/dm-9/messages
+{
+  "content": "**Available commands:**\n• `@PC-Principal chat \u003ctopic\u003e` — Start a persistent threaded conversation with PC Principal on a topic.\n• `@PC-Principal mdelete \u003cn\u003e` — Delete the last N messages in this channel.\n• `@PC-Principal help` — Display this help message.\n• `@PC-Principal hey \u003cmessage\u003e` — Ask PC Principal something.\n• `@PC-Principal ping` — Test the bot's responsiveness.\n• `@PC-Principal mpost #channel \u003cmessage\u003e` — Post a message to a channel as the bot.\n",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/dm-9/messages
+{
+  "content": "**Available commands:**\n• `@PC-Principal chat \u003ctopic\u003e` — Start a persistent threaded conversation with PC Principal on a topic.\n• `@PC-Principal mdelete \u003cn\u003e` — Delete the last N messages in this channel.\n• `@PC-Principal help` — Display this help message.\n• `@PC-Principal hey \u003cmessage\u003e` — Ask PC Principal something.\n• `@PC-Principal ping` — Test the bot's responsiveness.\n• `@PC-Principal mpost #channel \u003cmessage\u003e` — Post a message to a channel as the bot.\n",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/channel-1/messages
+{
+  "content": "Failed to send you a DM. Did you disable DMs in your privacy settings?",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+stdout: error sending DM: Exceeded Max retries HTTP , {"message":"test failure"}
+=== help when the DM channel cannot be opened
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-9/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /users/@me/channels
+{
+  "recipient_id": "user-1"
+}
+  -> 500
+discord POST /users/@me/channels
+{
+  "recipient_id": "user-1"
+}
+  -> 500
+discord POST /users/@me/channels
+{
+  "recipient_id": "user-1"
+}
+  -> 500
+discord POST /users/@me/channels
+{
+  "recipient_id": "user-1"
+}
+  -> 500
+discord POST /channels/channel-1/messages
+{
+  "content": "Something went wrong while sending the DM!",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+stdout: error creating DM channel: Exceeded Max retries HTTP , {"message":"test failure"}
+=== ping when only the guild has the PC emoji
+discord GET /applications/bot-1/emojis
+  -> 500
+discord GET /applications/bot-1/emojis
+  -> 500
+discord GET /applications/bot-1/emojis
+  -> 500
+discord GET /applications/bot-1/emojis
+  -> 500
+discord GET /guilds/guild-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-10/reactions/pc:emoji-2/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "Pong!",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0

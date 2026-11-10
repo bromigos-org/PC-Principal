@@ -5,7 +5,7 @@ tmp_dir = "tmp"
 [build]
 args_bin = []
 bin = "./tmp/main"
-cmd = "go build -o ./tmp/main ./cmd/bromigo/main.go"
+cmd = "go build -o ./tmp/main ./cmd/pc-principal/"
 delay = 1000
 exclude_dir = ["assets", "tmp", "vendor", "testdata"]
 exclude_file = []
@@ -13,7 +13,7 @@ exclude_regex = ["_test.go"]
 exclude_unchanged = false
 follow_symlink = false
 full_bin = ""
-include_dir = ["cmd", "common"]
+include_dir = ["cmd", "internal"]
 include_ext = ["go", "tpl", "tmpl", "html"]
 include_file = []
 kill_delay = "0s"

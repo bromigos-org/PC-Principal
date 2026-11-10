@@ -1,7 +1,7 @@
 # PC-Principal
 
 [![CI](https://github.com/bromigos-org/PC-Principal/actions/workflows/ci-tests.yml/badge.svg?branch=main)](https://github.com/bromigos-org/PC-Principal/actions/workflows/ci-tests.yml)
-[![Go 1.24](https://img.shields.io/badge/go-1.24-00ADD8?logo=go&logoColor=white)](go.mod)
+[![Go 1.27](https://img.shields.io/badge/go-1.27-00ADD8?logo=go&logoColor=white)](go.mod)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 PC-Principal is the Bromigos Discord bot. It is written in Go on top of
@@ -150,8 +150,8 @@ The bot degrades instead of crashing.
 
 You need:
 
-- Go 1.24 or later. With an older Go, prefix commands with
-  `GOTOOLCHAIN=go1.24.0` to fetch the right toolchain.
+- Go 1.27 or later. With an older Go, prefix commands with
+  `GOTOOLCHAIN=go1.27.3` to fetch the right toolchain.
 - A Discord bot token. In the Discord developer portal, turn on the Message
   Content, Server Members and Presence intents.
 - An OpenAI-compatible chat endpoint and its API key.
@@ -273,7 +273,9 @@ docker run --env-file .env -p 8080:8080 pc-principal
 
 CI lives in `.github/workflows/ci-tests.yml`.
 
-- Every push and pull request to `main` runs `go test -v ./...`.
+- Every push and pull request to `main` runs `go vet ./...`,
+  `go test -v ./...` and `govulncheck ./...`. A known vulnerability that the
+  code can reach fails the run.
 - A push to `main` that passes the tests builds and pushes
   `ghcr.io/bromigos-org/pc-principal`. It is tagged with the commit SHA and
   `latest`.

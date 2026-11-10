@@ -1,0 +1,911 @@
+=== chat with a topic starts a thread
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-1/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages/message-1/threads
+{
+  "name": "kubernetes networking",
+  "auto_archive_duration": 60,
+  "invitable": false
+}
+  -> 200
+discord GET /guilds/guild-1/roles
+  -> 200
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: kubernetes networking"
+    }
+  ]
+}
+discord POST /channels/thread-1/messages
+{
+  "content": "Kubernetes is sweet, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+redis SET conversation:thread-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin)]: kubernetes networking"
+  },
+  {
+    "role": "assistant",
+    "content": "Kubernetes is sweet, bro."
+  }
+]
+redis EXISTS conversation:channel-1 -> 0
+=== message in the thread without a mention
+redis EXISTS conversation:thread-1 -> 1
+redis GET conversation:thread-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: kubernetes networking"
+    },
+    {
+      "role": "assistant",
+      "content": "Kubernetes is sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[alex (Gamers)]: what about cilium?"
+    }
+  ]
+}
+redis SET conversation:thread-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin)]: kubernetes networking"
+  },
+  {
+    "role": "assistant",
+    "content": "Kubernetes is sweet, bro."
+  },
+  {
+    "role": "user",
+    "content": "[alex (Gamers)]: what about cilium?"
+  },
+  {
+    "role": "assistant",
+    "content": "Cilium rocks, dude."
+  }
+]
+discord POST /channels/thread-1/messages
+{
+  "content": "Cilium rocks, dude.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+=== mention inside the thread: both the mention and the thread handler answer
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/thread-1/messages/message-3/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:thread-1 -> (nil)
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/thread-1/messages?before=message-3&limit=12
+  -> 404
+discord GET /channels/thread-1
+  -> 404
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "thread-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-3",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "and calico?",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-1/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-1",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-1/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-1",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 3,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos]: and calico?"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos]: and calico?"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 3
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:guild:guild-1:channel:thread-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos]: and calico?"
+  },
+  {
+    "role": "assistant",
+    "content": "Calico too, bro."
+  }
+]
+discord POST /channels/thread-1/messages
+{
+  "content": "Calico too, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "thread-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "and calico?"
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "Calico too, bro."
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+redis EXISTS conversation:thread-1 -> 1
+redis GET conversation:thread-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: kubernetes networking"
+    },
+    {
+      "role": "assistant",
+      "content": "Kubernetes is sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[alex (Gamers)]: what about cilium?"
+    },
+    {
+      "role": "assistant",
+      "content": "Cilium rocks, dude."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: \u003c@bot-1\u003e and calico?"
+    }
+  ]
+}
+redis SET conversation:thread-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin)]: kubernetes networking"
+  },
+  {
+    "role": "assistant",
+    "content": "Kubernetes is sweet, bro."
+  },
+  {
+    "role": "user",
+    "content": "[alex (Gamers)]: what about cilium?"
+  },
+  {
+    "role": "assistant",
+    "content": "Cilium rocks, dude."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin)]: \u003c@bot-1\u003e and calico?"
+  },
+  {
+    "role": "assistant",
+    "content": "Calico too, in the thread, bro."
+  }
+]
+discord POST /channels/thread-1/messages
+{
+  "content": "Calico too, in the thread, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+=== chat without a topic
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-4/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "BRO. You need to give me a TOPIC. Example: `@PC-Principal chat kubernetes`",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== thread follow-up when the model call fails
+redis EXISTS conversation:thread-1 -> 1
+redis GET conversation:thread-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: kubernetes networking"
+    },
+    {
+      "role": "assistant",
+      "content": "Kubernetes is sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[alex (Gamers)]: what about cilium?"
+    },
+    {
+      "role": "assistant",
+      "content": "Cilium rocks, dude."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: \u003c@bot-1\u003e and calico?"
+    },
+    {
+      "role": "assistant",
+      "content": "Calico too, in the thread, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: still there?"
+    }
+  ]
+}
+discord POST /channels/thread-1/messages
+{
+  "content": "LiteLLM is DOWN right now. I am VERY upset. Someone fix the infrastructure.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+stdout: hey_thread: LiteLLM error: LiteLLM returned 500: {"error":"model unavailable"}
+=== chat when the model call fails
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-6/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages/message-6/threads
+{
+  "name": "helm charts",
+  "auto_archive_duration": 60,
+  "invitable": false
+}
+  -> 200
+discord GET /guilds/guild-1/roles
+  -> 200
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: helm charts"
+    }
+  ]
+}
+discord POST /channels/thread-2/messages
+{
+  "content": "LiteLLM is NOT responding. I am livid. Check the logs.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+stdout: chat: LiteLLM error: LiteLLM returned 500: {"error":"model unavailable"}
+=== chat when the thread cannot be created
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-7/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages/message-7/threads
+{
+  "name": "istio",
+  "auto_archive_duration": 60,
+  "invitable": false
+}
+  -> 500
+discord POST /channels/channel-1/messages/message-7/threads
+{
+  "name": "istio",
+  "auto_archive_duration": 60,
+  "invitable": false
+}
+  -> 500
+discord POST /channels/channel-1/messages/message-7/threads
+{
+  "name": "istio",
+  "auto_archive_duration": 60,
+  "invitable": false
+}
+  -> 500
+discord POST /channels/channel-1/messages/message-7/threads
+{
+  "name": "istio",
+  "auto_archive_duration": 60,
+  "invitable": false
+}
+  -> 500
+discord POST /channels/channel-1/messages
+{
+  "content": "I CANNOT create a thread right now. This is a BLATANT infrastructure failure.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+stdout: chat: thread creation error: Exceeded Max retries HTTP , {"message":"test failure"}
+=== chat when the history cannot be saved
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-8/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages/message-8/threads
+{
+  "name": "argo",
+  "auto_archive_duration": 60,
+  "invitable": false
+}
+  -> 200
+discord GET /guilds/guild-1/roles
+  -> 200
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: argo"
+    }
+  ]
+}
+discord POST /channels/thread-3/messages
+{
+  "content": "Saved nowhere, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+redis SET conversation:thread-3 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin)]: argo"
+  },
+  {
+    "role": "assistant",
+    "content": "Saved nowhere, bro."
+  }
+]
+redis EXISTS conversation:channel-1 -> 0
+stdout: chat: store error: ERR fake redis refuses writes
+=== thread follow-up when neither save nor send works
+redis EXISTS conversation:thread-1 -> 1
+redis GET conversation:thread-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: kubernetes networking"
+    },
+    {
+      "role": "assistant",
+      "content": "Kubernetes is sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[alex (Gamers)]: what about cilium?"
+    },
+    {
+      "role": "assistant",
+      "content": "Cilium rocks, dude."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: \u003c@bot-1\u003e and calico?"
+    },
+    {
+      "role": "assistant",
+      "content": "Calico too, in the thread, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin)]: hello?"
+    }
+  ]
+}
+redis SET conversation:thread-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin)]: kubernetes networking"
+  },
+  {
+    "role": "assistant",
+    "content": "Kubernetes is sweet, bro."
+  },
+  {
+    "role": "user",
+    "content": "[alex (Gamers)]: what about cilium?"
+  },
+  {
+    "role": "assistant",
+    "content": "Cilium rocks, dude."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin)]: \u003c@bot-1\u003e and calico?"
+  },
+  {
+    "role": "assistant",
+    "content": "Calico too, in the thread, bro."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin)]: hello?"
+  },
+  {
+    "role": "assistant",
+    "content": "Thread reply that cannot be sent, bro."
+  }
+]
+discord POST /channels/thread-1/messages
+{
+  "content": "Thread reply that cannot be sent, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/thread-1/messages
+{
+  "content": "Thread reply that cannot be sent, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/thread-1/messages
+{
+  "content": "Thread reply that cannot be sent, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/thread-1/messages
+{
+  "content": "Thread reply that cannot be sent, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 500
+stdout: hey_thread: save error: ERR fake redis refuses writes
+stdout: hey_thread: send error: send Discord message: Exceeded Max retries HTTP , {"message":"test failure"}

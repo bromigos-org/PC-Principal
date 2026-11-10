@@ -1,0 +1,694 @@
+=== first turn in a DM
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/dm-1/messages/message-1/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:dm:dm-1 -> (nil)
+discord GET /channels/dm-1/messages?before=message-1&limit=12
+  -> 200
+discord GET /channels/dm-1
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "session_id": "dm:dm-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "dm-1",
+    "guild_id": ""
+  },
+  "triggered_by_message_id": "message-1",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-1",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "query": "you there?",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-1/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-1",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-1/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-1",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-1",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 4,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame]: you there?"
+    },
+    {
+      "role": "system",
+      "content": "Relevant reviewed memory context:\nSource: long_term_facts\nblackflame likes expansive graph memory\nFact: kind=preference; summary=use combined context; weight=2\n\nSource: graph\nGraph fact: #general discussed Dragonfly yesterday"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame]: you there?"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 4
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:dm:dm-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame]: you there?"
+  },
+  {
+    "role": "assistant",
+    "content": "Sup, bro."
+  }
+]
+discord POST /channels/dm-1/messages
+{
+  "content": "Sup, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "dm-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "role": "user",
+  "content": "you there?"
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "role": "assistant",
+  "content": "Sup, bro."
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-1",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+redis EXISTS conversation:dm-1 -> 0
+=== second turn in a DM
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/dm-1/messages/message-2/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:dm:dm-1 -> hit
+discord GET /channels/dm-1/messages?before=message-2&limit=12
+  -> 200
+discord GET /channels/dm-1
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "session_id": "dm:dm-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "dm-1",
+    "guild_id": ""
+  },
+  "triggered_by_message_id": "message-2",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-2/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-2",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "query": "still there?",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-3/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-3",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-3/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-3",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-2/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-2",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 6,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame]: you there?\nassistant: Sup, bro.\nuser: [blackflame]: still there?"
+    },
+    {
+      "role": "system",
+      "content": "Relevant reviewed memory context:\nSource: long_term_facts\nblackflame likes expansive graph memory\nFact: kind=preference; summary=use combined context; weight=2\n\nSource: graph\nGraph fact: #general discussed Dragonfly yesterday"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame]: you there?"
+    },
+    {
+      "role": "assistant",
+      "content": "Sup, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame]: still there?"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 6
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:dm:dm-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame]: you there?"
+  },
+  {
+    "role": "assistant",
+    "content": "Sup, bro."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame]: still there?"
+  },
+  {
+    "role": "assistant",
+    "content": "Still here, bro."
+  }
+]
+discord POST /channels/dm-1/messages
+{
+  "content": "Still here, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "dm-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "role": "user",
+  "content": "still there?"
+}
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "role": "assistant",
+  "content": "Still here, bro."
+}
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-2/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "dm",
+    "agent_id": "pc-principal",
+    "session_id": "dm:dm-1",
+    "user_id": "user-1",
+    "visibility": "private_user",
+    "channel_id": "dm-1"
+  },
+  "trace_id": "trace-2",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+redis EXISTS conversation:dm-1 -> 0

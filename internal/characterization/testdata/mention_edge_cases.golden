@@ -1,0 +1,62 @@
+=== mention with nothing after it
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-1/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, I'm here. Say what you need after the mention.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== mention followed only by hey
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-2/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, I'm here. Say what you need after the mention.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== reply that pings the bot without its mention in the text
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-3/reactions/PC:emoji-1/@me
+  -> 204
+redis EXISTS conversation:channel-1 -> 0
+=== one-word reply that pings the bot
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-4/reactions/PC:emoji-1/@me
+  -> 204
+redis EXISTS conversation:channel-1 -> 0
+=== no mention at all
+redis EXISTS conversation:channel-1 -> 0
+=== message from another bot
+=== message from the bot itself

@@ -2,10 +2,8 @@ package commands
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
-	"github.com/bromigos-org/pc-principal/internal/ambient"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -27,40 +25,13 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if !hasAllowedRole(m.Member) {
 		return
 	}
-	if ambientManager != nil {
-		decision, err := ambientManager.Decide(context.Background(), ambientMessage(s, m, true))
-		if err != nil {
-			fmt.Printf("ambient: state error: %v\n", err)
-		}
-		if decision.Stop {
-			return
-		}
-	}
+	d := dispatcher()
+	d.Commands = mentionCommands(s, m)
+	d.HandleAddressed(context.Background(), inboundFromMessage(s, m), discordDescriber{session: s, message: m}, respondTo(s, m))
+}
 
-	parts := strings.Fields(m.Content)
-	if len(parts) < 2 {
-		reactPC(s, m)
-		if err := handleMentionConversation(s, m); err != nil {
-			fmt.Printf("mention: conversation error: %v\n", err)
-			s.ChannelMessageSend(m.ChannelID, "Bro, LiteLLM is not cooperating right now. Totally unacceptable.")
-		}
-		return
-	}
-
-	name := strings.ToLower(parts[1])
-	for _, cmd := range registry {
-		if cmd.Name == name && name != "hey" {
-			reactPC(s, m)
-			cmd.Handler(s, m)
-			return
-		}
-	}
-
-	reactPC(s, m)
-	if err := handleMentionConversation(s, m); err != nil {
-		fmt.Printf("mention: conversation error: %v\n", err)
-		s.ChannelMessageSend(m.ChannelID, "Bro, LiteLLM is not cooperating right now. Totally unacceptable.")
-	}
+func handleMentionConversation(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	return dispatcher().AddressedConversation(context.Background(), inboundFromMessage(s, m), discordDescriber{session: s, message: m}, respondTo(s, m))
 }
 
 func AmbientReply(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -70,22 +41,7 @@ func AmbientReply(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if !hasAllowedRole(m.Member) || mentionsBot(s, m) {
 		return
 	}
-	decision, err := ambientManager.Decide(context.Background(), ambientMessage(s, m, false))
-	if err != nil {
-		fmt.Printf("ambient: state error: %v\n", err)
-		return
-	}
-	if !decision.Reply {
-		return
-	}
-	if err := handleAmbientConversation(s, m); err != nil {
-		fmt.Printf("ambient: conversation error: %v\n", err)
-		s.ChannelMessageSend(m.ChannelID, "Bro, LiteLLM is not cooperating right now. Totally unacceptable.")
-	}
-}
-
-func ambientMessage(s *discordgo.Session, m *discordgo.MessageCreate, botMentioned bool) ambient.Message {
-	return ambient.Message{ChannelID: m.ChannelID, GuildID: m.GuildID, UserID: m.Author.ID, Content: m.Content, BotMentioned: botMentioned, ReferencesBot: referencesBot(s, m)}
+	dispatcher().HandleAmbient(context.Background(), inboundFromMessage(s, m), discordDescriber{session: s, message: m}, respondTo(s, m))
 }
 
 func mentionsBot(s *discordgo.Session, m *discordgo.MessageCreate) bool {

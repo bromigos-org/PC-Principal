@@ -1,0 +1,3031 @@
+=== mention conversation starts the session
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-1/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:channel-1 -> (nil)
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-1&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-1",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "are you pc?",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-1/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-1",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-1/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-1",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 3,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 3
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm PC, Texas A\u0026M!"
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "I'm PC, Texas A\u0026M!",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "are you pc?"
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "I'm PC, Texas A\u0026M!"
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+ambient SAVE ambient:discord:channel:channel-1 ttl=20m0s
+{
+  "channel_id": "channel-1",
+  "guild_id": "guild-1",
+  "active_user_id": "user-1",
+  "user_turns": 0,
+  "consecutive_bot_replies": 0,
+  "last_channel_reply_at": "0001-01-01T00:00:00Z",
+  "last_user_reply_at": "0001-01-01T00:00:00Z",
+  "expires_at": "2026-06-27T12:20:00Z"
+}
+redis EXISTS conversation:channel-1 -> 0
+=== same member, no mention: ambient reply
+redis EXISTS conversation:channel-1 -> 0
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-2&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-2",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-2/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "I am also PC",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-3/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-3",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-3/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-3",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-2/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 5,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?\nassistant: I'm PC, Texas A\u0026M!\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm PC, Texas A\u0026M!"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 5
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm PC, Texas A\u0026M!"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+  },
+  {
+    "role": "assistant",
+    "content": "Sweet, bro."
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "Sweet, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "I am also PC"
+}
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "Sweet, bro."
+}
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-2/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+ambient SAVE ambient:discord:channel:channel-1 ttl=20m0s
+{
+  "channel_id": "channel-1",
+  "guild_id": "guild-1",
+  "active_user_id": "user-1",
+  "user_turns": 1,
+  "consecutive_bot_replies": 1,
+  "last_channel_reply_at": "2026-06-27T12:02:00Z",
+  "last_user_reply_at": "2026-06-27T12:02:00Z",
+  "expires_at": "2026-06-27T12:22:00Z"
+}
+=== same member again at once: cooldown
+redis EXISTS conversation:channel-1 -> 0
+=== another member, no mention: ignored
+redis EXISTS conversation:channel-1 -> 0
+=== command while the session is active
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-5/reactions/PC:emoji-1/@me
+  -> 204
+discord POST /channels/channel-1/messages
+{
+  "content": "Pong!",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+=== blank message while the session is active
+redis EXISTS conversation:channel-1 -> 0
+=== another member replying to the bot: ambient reply
+redis EXISTS conversation:channel-1 -> 0
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-7&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-7",
+  "user_identifier": "user-3"
+}
+gnosis POST /v1/reasoning/traces/trace-3/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "for real though",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-5/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "step_id": "step-5",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-5/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "step_id": "step-5",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-3/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 7,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?\nassistant: I'm PC, Texas A\u0026M!\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC\nassistant: Sweet, bro.\nuser: [casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm PC, Texas A\u0026M!"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+    },
+    {
+      "role": "assistant",
+      "content": "Sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-6/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "step_id": "step-6",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 7
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm PC, Texas A\u0026M!"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+  },
+  {
+    "role": "assistant",
+    "content": "Sweet, bro."
+  },
+  {
+    "role": "user",
+    "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+  },
+  {
+    "role": "assistant",
+    "content": "Casey gets it."
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "Casey gets it.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-6/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "step_id": "step-6",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "for real though"
+}
+gnosis POST /v1/reasoning/steps/step-6/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "step_id": "step-6",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "Casey gets it."
+}
+gnosis POST /v1/reasoning/steps/step-6/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "step_id": "step-6",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-3/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-3",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+ambient SAVE ambient:discord:channel:channel-1 ttl=20m0s
+{
+  "channel_id": "channel-1",
+  "guild_id": "guild-1",
+  "active_user_id": "user-1",
+  "user_turns": 2,
+  "consecutive_bot_replies": 2,
+  "last_channel_reply_at": "2026-06-27T12:04:00Z",
+  "last_user_reply_at": "2026-06-27T12:04:00Z",
+  "expires_at": "2026-06-27T12:24:00Z"
+}
+=== two replies in a row end the session
+redis EXISTS conversation:channel-1 -> 0
+ambient DELETE ambient:discord:channel:channel-1
+=== no session: silence
+redis EXISTS conversation:channel-1 -> 0
+=== mention conversation starts a second session
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-10/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-10&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-10",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-4/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "back again",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-7/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "step_id": "step-7",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-7/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "step_id": "step-7",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-4/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 9,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?\nassistant: I'm PC, Texas A\u0026M!\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC\nassistant: Sweet, bro.\nuser: [casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though\nassistant: Casey gets it.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm PC, Texas A\u0026M!"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+    },
+    {
+      "role": "assistant",
+      "content": "Sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+    },
+    {
+      "role": "assistant",
+      "content": "Casey gets it."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-8/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "step_id": "step-8",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 9
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm PC, Texas A\u0026M!"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+  },
+  {
+    "role": "assistant",
+    "content": "Sweet, bro."
+  },
+  {
+    "role": "user",
+    "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+  },
+  {
+    "role": "assistant",
+    "content": "Casey gets it."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+  },
+  {
+    "role": "assistant",
+    "content": "Back again, bro."
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "Back again, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-8/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "step_id": "step-8",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "back again"
+}
+gnosis POST /v1/reasoning/steps/step-8/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "step_id": "step-8",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "Back again, bro."
+}
+gnosis POST /v1/reasoning/steps/step-8/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "step_id": "step-8",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-4/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+ambient SAVE ambient:discord:channel:channel-1 ttl=20m0s
+{
+  "channel_id": "channel-1",
+  "guild_id": "guild-1",
+  "active_user_id": "user-1",
+  "user_turns": 0,
+  "consecutive_bot_replies": 0,
+  "last_channel_reply_at": "0001-01-01T00:00:00Z",
+  "last_user_reply_at": "0001-01-01T00:00:00Z",
+  "expires_at": "2026-06-27T12:26:00Z"
+}
+redis EXISTS conversation:channel-1 -> 0
+=== mention asking to stop ends the session without a reply
+ambient DELETE ambient:discord:channel:channel-1
+redis EXISTS conversation:channel-1 -> 0
+=== mention conversation starts a third session
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-12/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-12&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-12",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-5/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-5",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "one more",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-9/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-5",
+  "step_id": "step-9",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-9/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-5",
+  "step_id": "step-9",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-5/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-5",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 11,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?\nassistant: I'm PC, Texas A\u0026M!\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC\nassistant: Sweet, bro.\nuser: [casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though\nassistant: Casey gets it.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again\nassistant: Back again, bro.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm PC, Texas A\u0026M!"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+    },
+    {
+      "role": "assistant",
+      "content": "Sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+    },
+    {
+      "role": "assistant",
+      "content": "Casey gets it."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+    },
+    {
+      "role": "assistant",
+      "content": "Back again, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-10/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-5",
+  "step_id": "step-10",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 11
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm PC, Texas A\u0026M!"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+  },
+  {
+    "role": "assistant",
+    "content": "Sweet, bro."
+  },
+  {
+    "role": "user",
+    "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+  },
+  {
+    "role": "assistant",
+    "content": "Casey gets it."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+  },
+  {
+    "role": "assistant",
+    "content": "Back again, bro."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more"
+  },
+  {
+    "role": "assistant",
+    "content": "One more, bro."
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "One more, bro.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-10/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-5",
+  "step_id": "step-10",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "one more"
+}
+gnosis POST /v1/reasoning/steps/step-10/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-5",
+  "step_id": "step-10",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "One more, bro."
+}
+gnosis POST /v1/reasoning/steps/step-10/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-5",
+  "step_id": "step-10",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-5/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-5",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+ambient SAVE ambient:discord:channel:channel-1 ttl=20m0s
+{
+  "channel_id": "channel-1",
+  "guild_id": "guild-1",
+  "active_user_id": "user-1",
+  "user_turns": 0,
+  "consecutive_bot_replies": 0,
+  "last_channel_reply_at": "0001-01-01T00:00:00Z",
+  "last_user_reply_at": "0001-01-01T00:00:00Z",
+  "expires_at": "2026-06-27T12:26:00Z"
+}
+redis EXISTS conversation:channel-1 -> 0
+=== ambient reply when the model call fails
+redis EXISTS conversation:channel-1 -> 0
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-13&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-13",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-6/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-6",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "you good?",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-11/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-6",
+  "step_id": "step-11",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-11/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-6",
+  "step_id": "step-11",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-6/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-6",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 13,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?\nassistant: I'm PC, Texas A\u0026M!\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC\nassistant: Sweet, bro.\nuser: [casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though\nassistant: Casey gets it.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again\nassistant: Back again, bro.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more\nassistant: One more, bro.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: you good?"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm PC, Texas A\u0026M!"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+    },
+    {
+      "role": "assistant",
+      "content": "Sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+    },
+    {
+      "role": "assistant",
+      "content": "Casey gets it."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+    },
+    {
+      "role": "assistant",
+      "content": "Back again, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more"
+    },
+    {
+      "role": "assistant",
+      "content": "One more, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: you good?"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-12/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-6",
+  "step_id": "step-12",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 13
+  },
+  "status": "error",
+  "error": "operation failed",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-6/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-6",
+  "outcome": "llm_failed",
+  "success": false,
+  "metadata": {
+    "stage": "llm"
+  }
+}
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, LiteLLM is not cooperating right now. Totally unacceptable.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+stdout: ambient: conversation error: call LiteLLM: LiteLLM returned 500: {"error":"model unavailable"}
+=== plain stop ends the session
+redis EXISTS conversation:channel-1 -> 0
+ambient DELETE ambient:discord:channel:channel-1
+=== mention conversation starts a fourth session
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-15/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-15&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-15",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-7/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-7",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "one",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-13/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-7",
+  "step_id": "step-13",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-13/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-7",
+  "step_id": "step-13",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-7/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-7",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 13,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?\nassistant: I'm PC, Texas A\u0026M!\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC\nassistant: Sweet, bro.\nuser: [casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though\nassistant: Casey gets it.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again\nassistant: Back again, bro.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more\nassistant: One more, bro.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm PC, Texas A\u0026M!"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+    },
+    {
+      "role": "assistant",
+      "content": "Sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+    },
+    {
+      "role": "assistant",
+      "content": "Casey gets it."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+    },
+    {
+      "role": "assistant",
+      "content": "Back again, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more"
+    },
+    {
+      "role": "assistant",
+      "content": "One more, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-14/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-7",
+  "step_id": "step-14",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 13
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm PC, Texas A\u0026M!"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+  },
+  {
+    "role": "assistant",
+    "content": "Sweet, bro."
+  },
+  {
+    "role": "user",
+    "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+  },
+  {
+    "role": "assistant",
+    "content": "Casey gets it."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+  },
+  {
+    "role": "assistant",
+    "content": "Back again, bro."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more"
+  },
+  {
+    "role": "assistant",
+    "content": "One more, bro."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one"
+  },
+  {
+    "role": "assistant",
+    "content": "One."
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "One.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-14/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-7",
+  "step_id": "step-14",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "one"
+}
+gnosis POST /v1/reasoning/steps/step-14/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-7",
+  "step_id": "step-14",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "One."
+}
+gnosis POST /v1/reasoning/steps/step-14/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-7",
+  "step_id": "step-14",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-7/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-7",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+ambient SAVE ambient:discord:channel:channel-1 ttl=20m0s
+{
+  "channel_id": "channel-1",
+  "guild_id": "guild-1",
+  "active_user_id": "user-1",
+  "user_turns": 0,
+  "consecutive_bot_replies": 0,
+  "last_channel_reply_at": "0001-01-01T00:00:00Z",
+  "last_user_reply_at": "0001-01-01T00:00:00Z",
+  "expires_at": "2026-06-27T12:28:00Z"
+}
+redis EXISTS conversation:channel-1 -> 0
+=== ambient reply
+redis EXISTS conversation:channel-1 -> 0
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-16&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-16",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-8/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-8",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "two",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-15/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-8",
+  "step_id": "step-15",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/skills
+{
+  "tenant_id": "bromigos",
+  "agent_id": "pc-principal"
+}
+gnosis POST /v1/reasoning/steps/step-15/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-8",
+  "step_id": "step-15",
+  "tool_name": "gnosis.skills_list",
+  "arguments": {
+    "agent_id": "pc-principal"
+  },
+  "result": {
+    "skills_count": 0
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-8/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-8",
+  "action": "prepare_context",
+  "observation": "Prepared scoped memory, graph, and reviewed skill context.",
+  "step_number": 2,
+  "metadata": {
+    "message_count": 15,
+    "skills_count": 0
+  }
+}
+llm POST /chat/completions
+{
+  "model": "gemma4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<<persona.golden>>"
+    },
+    {
+      "role": "system",
+      "content": "Recent Dragonfly conversation history:\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?\nassistant: I'm PC, Texas A\u0026M!\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC\nassistant: Sweet, bro.\nuser: [casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though\nassistant: Casey gets it.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again\nassistant: Back again, bro.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more\nassistant: One more, bro.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one\nassistant: One.\nuser: [blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: two"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm PC, Texas A\u0026M!"
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+    },
+    {
+      "role": "assistant",
+      "content": "Sweet, bro."
+    },
+    {
+      "role": "user",
+      "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+    },
+    {
+      "role": "assistant",
+      "content": "Casey gets it."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+    },
+    {
+      "role": "assistant",
+      "content": "Back again, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more"
+    },
+    {
+      "role": "assistant",
+      "content": "One more, bro."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one"
+    },
+    {
+      "role": "assistant",
+      "content": "One."
+    },
+    {
+      "role": "user",
+      "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: two"
+    }
+  ]
+}
+gnosis POST /v1/reasoning/steps/step-16/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-8",
+  "step_id": "step-16",
+  "tool_name": "litellm.generate",
+  "arguments": {
+    "message_count": 15
+  },
+  "result": {
+    "reply_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: are you pc?"
+  },
+  {
+    "role": "assistant",
+    "content": "I'm PC, Texas A\u0026M!"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: I am also PC"
+  },
+  {
+    "role": "assistant",
+    "content": "Sweet, bro."
+  },
+  {
+    "role": "user",
+    "content": "[casey (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: for real though"
+  },
+  {
+    "role": "assistant",
+    "content": "Casey gets it."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: back again"
+  },
+  {
+    "role": "assistant",
+    "content": "Back again, bro."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one more"
+  },
+  {
+    "role": "assistant",
+    "content": "One more, bro."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: one"
+  },
+  {
+    "role": "assistant",
+    "content": "One."
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: two"
+  },
+  {
+    "role": "assistant",
+    "content": "Two."
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "Two.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-16/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-8",
+  "step_id": "step-16",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "two"
+}
+gnosis POST /v1/reasoning/steps/step-16/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-8",
+  "step_id": "step-16",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "Two."
+}
+gnosis POST /v1/reasoning/steps/step-16/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-8",
+  "step_id": "step-16",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-8/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-8",
+  "outcome": "answered",
+  "success": true,
+  "metadata": {
+    "stage": "complete"
+  }
+}
+ambient SAVE ambient:discord:channel:channel-1 ttl=20m0s
+{
+  "channel_id": "channel-1",
+  "guild_id": "guild-1",
+  "active_user_id": "user-1",
+  "user_turns": 1,
+  "consecutive_bot_replies": 1,
+  "last_channel_reply_at": "2026-06-27T12:10:00Z",
+  "last_user_reply_at": "2026-06-27T12:10:00Z",
+  "expires_at": "2026-06-27T12:30:00Z"
+}
+=== session expired
+redis EXISTS conversation:channel-1 -> 0
+ambient DELETE ambient:discord:channel:channel-1

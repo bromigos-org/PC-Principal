@@ -1,0 +1,1018 @@
+=== answered from graph facts, no model call
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-1/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:channel-1 -> (nil)
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-1&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-1",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "what are @BlackDave top 5 most active channels??",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-1/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-1",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "action": "answer_channel_activity",
+  "observation": "Answered channel activity from gnosis graph facts.",
+  "step_number": 2,
+  "metadata": {
+    "stage": "deterministic_graph"
+  }
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: what are @BlackDave top 5 most active channels??"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "what are @BlackDave top 5 most active channels??"
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+}
+gnosis POST /v1/reasoning/steps/step-2/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "step_id": "step-2",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "result": {
+    "stored": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-1/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-1",
+  "outcome": "answered_channel_activity",
+  "success": true,
+  "metadata": {
+    "source": "gnosis_graph",
+    "stage": "complete"
+  }
+}
+redis EXISTS conversation:channel-1 -> 0
+=== answered from graph facts, write-back failing
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-2/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-2&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-2",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-2/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "again please",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-3/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-3",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-2/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "action": "answer_channel_activity",
+  "observation": "Answered channel activity from gnosis graph facts.",
+  "step_number": 2,
+  "metadata": {
+    "stage": "deterministic_graph"
+  }
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: what are @BlackDave top 5 most active channels??"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: again please"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 200
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "result": {
+    "sent": true
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "user",
+  "content": "again please"
+}
+  -> 500
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "gnosis.message_write.user",
+  "arguments": {
+    "role": "user"
+  },
+  "status": "error",
+  "error": "operation failed",
+  "touched_entities": null
+}
+gnosis POST /v1/messages
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "role": "assistant",
+  "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+}
+  -> 500
+gnosis POST /v1/reasoning/steps/step-4/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "step_id": "step-4",
+  "tool_name": "gnosis.message_write.assistant",
+  "arguments": {
+    "role": "assistant"
+  },
+  "status": "error",
+  "error": "operation failed",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-2/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-2",
+  "outcome": "answered_channel_activity",
+  "success": true,
+  "metadata": {
+    "source": "gnosis_graph",
+    "stage": "complete"
+  }
+}
+redis EXISTS conversation:channel-1 -> 0
+log: gnosis user write failed: write memory message: gnosis request: gnosis returned 500 (server)
+log: gnosis assistant write failed: write memory message: gnosis request: gnosis returned 500 (server)
+=== answered from graph facts, Discord send failing
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-3/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-3&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-3",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-3/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "once more",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-5/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "step_id": "step-5",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-3/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "action": "answer_channel_activity",
+  "observation": "Answered channel activity from gnosis graph facts.",
+  "step_number": 2,
+  "metadata": {
+    "stage": "deterministic_graph"
+  }
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: what are @BlackDave top 5 most active channels??"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: again please"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: once more"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  }
+]
+discord POST /channels/channel-1/messages
+{
+  "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/channel-1/messages
+{
+  "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/channel-1/messages
+{
+  "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/channel-1/messages
+{
+  "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "allowed_mentions": {
+    "parse": [
+      "users",
+      "roles",
+      "everyone"
+    ],
+    "replied_user": false
+  },
+  "sticker_ids": null
+}
+  -> 500
+gnosis POST /v1/reasoning/steps/step-6/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "step_id": "step-6",
+  "tool_name": "discord.message_send",
+  "arguments": {
+    "channel_id": "channel-1"
+  },
+  "status": "error",
+  "error": "operation failed",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-3/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-3",
+  "outcome": "discord_send_failed",
+  "success": false,
+  "metadata": {
+    "stage": "discord"
+  }
+}
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, LiteLLM is not cooperating right now. Totally unacceptable.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, LiteLLM is not cooperating right now. Totally unacceptable.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, LiteLLM is not cooperating right now. Totally unacceptable.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 500
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, LiteLLM is not cooperating right now. Totally unacceptable.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 500
+redis EXISTS conversation:channel-1 -> 0
+stdout: mention: conversation error: send response: send Discord message: Exceeded Max retries HTTP , {"message":"test failure"}
+=== answered from graph facts, history save failing
+discord GET /applications/bot-1/emojis
+  -> 200
+discord PUT /channels/channel-1/messages/message-4/reactions/PC:emoji-1/@me
+  -> 204
+redis GET conversation:guild:guild-1:channel:channel-1 -> hit
+discord GET /guilds/guild-1/roles
+  -> 200
+discord GET /channels/channel-1/messages?before=message-4&limit=12
+  -> 200
+gnosis POST /v1/reasoning/traces
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "session_id": "guild:guild-1",
+  "task": "reply to Discord mention conversation",
+  "metadata": {
+    "agent_id": "pc-principal",
+    "channel_id": "channel-1",
+    "guild_id": "guild-1"
+  },
+  "triggered_by_message_id": "message-4",
+  "user_identifier": "user-1"
+}
+gnosis POST /v1/reasoning/traces/trace-4/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "action": "retrieve_context",
+  "observation": "Retrieved scoped memory and reviewed skill context.",
+  "step_number": 1,
+  "metadata": {
+    "stage": "context"
+  }
+}
+gnosis POST /v1/memory/context
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "query": "and again",
+  "include_short_term": true,
+  "include_long_term": true,
+  "include_reasoning": true,
+  "include_graph": true,
+  "max_items": 8,
+  "graph_limit": 8
+}
+gnosis POST /v1/reasoning/steps/step-7/tool-calls
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "step_id": "step-7",
+  "tool_name": "gnosis.memory_context",
+  "arguments": {
+    "graph_limit": 8,
+    "include_graph": true,
+    "include_long_term": true,
+    "include_reasoning": true,
+    "include_short_term": true,
+    "max_items": 8,
+    "used_short_term_scope": false
+  },
+  "result": {
+    "prompt_empty": false
+  },
+  "status": "success",
+  "touched_entities": null
+}
+gnosis POST /v1/reasoning/traces/trace-4/steps
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "action": "answer_channel_activity",
+  "observation": "Answered channel activity from gnosis graph facts.",
+  "step_number": 2,
+  "metadata": {
+    "stage": "deterministic_graph"
+  }
+}
+redis SET conversation:guild:guild-1:channel:channel-1 ex 86400
+[
+  {
+    "role": "system",
+    "content": "<<persona.golden>>"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: what are @BlackDave top 5 most active channels??"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: again please"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: once more"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  },
+  {
+    "role": "user",
+    "content": "[blackflame (Admin); Guild: Bromigos; Channel: general; Recent participants: casey, alex]: and again"
+  },
+  {
+    "role": "assistant",
+    "content": "BlackDave's top active channels:\n1. #general-chat - 247 messages\n2. #server-suggestion-box - 4 messages\n3. #promos - 1 message"
+  }
+]
+gnosis POST /v1/reasoning/traces/trace-4/complete
+{
+  "scope": {
+    "tenant_id": "bromigos",
+    "space_id": "guild-1",
+    "agent_id": "pc-principal",
+    "session_id": "guild:guild-1",
+    "user_id": "user-1",
+    "visibility": "guild",
+    "guild_id": "guild-1"
+  },
+  "trace_id": "trace-4",
+  "outcome": "store_failed",
+  "success": false,
+  "metadata": {
+    "stage": "channel_memory"
+  }
+}
+discord POST /channels/channel-1/messages
+{
+  "content": "Bro, LiteLLM is not cooperating right now. Totally unacceptable.",
+  "embeds": null,
+  "tts": false,
+  "components": null,
+  "sticker_ids": null
+}
+  -> 200
+redis EXISTS conversation:channel-1 -> 0
+stdout: mention: conversation error: save channel memory: ERR fake redis refuses writes

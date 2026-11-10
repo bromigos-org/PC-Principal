@@ -30,6 +30,9 @@ type Responder interface {
 	Edit(ctx context.Context, ref string, card Card) error
 	// Answer tells the sender something that only they see.
 	Answer(ctx context.Context, text string) error
+	// Defer tells the sender that the answer will take a moment, on a
+	// platform that expects one within seconds (a button press on BRODEC).
+	Defer(ctx context.Context) error
 }
 
 // Card is a structured message: a title, text, labelled values and rows of
@@ -46,18 +49,30 @@ type Card struct {
 type CardField struct {
 	Label string
 	Value string
+	// Bar draws a bar under the value, filled to this many percent (0 to
+	// 100). Nil draws none.
+	Bar *int
 }
+
+// Button styles a front end may draw differently. The empty style is the
+// platform's plain button.
+const (
+	ButtonPrimary = "primary"
+	ButtonDanger  = "danger"
+)
 
 // CardButton is one button on a Card. ID comes back to the bot when the
 // button is pressed.
 type CardButton struct {
 	ID    string
 	Label string
+	// Style is ButtonPrimary, ButtonDanger or empty.
+	Style string
 }
 
 // TextOnly implements the verbs beyond Acknowledge, Reply and Say by
-// returning ErrUnsupported. A front end for a platform without cards or
-// private answers embeds it.
+// returning ErrUnsupported. A front end for a platform without cards,
+// private answers or deferred ones embeds it.
 type TextOnly struct{}
 
 func (TextOnly) Card(context.Context, Card) (string, error) { return "", ErrUnsupported }
@@ -65,3 +80,5 @@ func (TextOnly) Card(context.Context, Card) (string, error) { return "", ErrUnsu
 func (TextOnly) Edit(context.Context, string, Card) error { return ErrUnsupported }
 
 func (TextOnly) Answer(context.Context, string) error { return ErrUnsupported }
+
+func (TextOnly) Defer(context.Context) error { return ErrUnsupported }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/bromigos-org/pc-principal/internal/core"
 	"github.com/bwmarrin/discordgo"
@@ -13,7 +12,7 @@ import (
 const (
 	discordMessageLimit     = 2000
 	discordSafeMessageLimit = 1900
-	emptyAssistantResponse  = "Bro, my brain totally blanked. Try that again."
+	emptyAssistantResponse  = core.BlankReply
 )
 
 // inboundFromMessage turns a Discord message into what the brain sees. The
@@ -131,31 +130,7 @@ func sendDiscordResponse(s *discordgo.Session, channelID string, response string
 	return nil
 }
 
+// chunkDiscordMessage splits an answer into messages Discord accepts.
 func chunkDiscordMessage(response string) []string {
-	text := strings.TrimSpace(response)
-	if text == "" {
-		return []string{emptyAssistantResponse}
-	}
-	if len(text) <= discordSafeMessageLimit {
-		return []string{text}
-	}
-
-	chunks := make([]string, 0, len(text)/discordSafeMessageLimit+1)
-	for len(text) > 0 {
-		cut := safeChunkSize(text)
-		chunks = append(chunks, text[:cut])
-		text = text[cut:]
-	}
-	return chunks
-}
-
-func safeChunkSize(text string) int {
-	if len(text) <= discordSafeMessageLimit {
-		return len(text)
-	}
-	cut := discordSafeMessageLimit
-	for !utf8.ValidString(text[:cut]) {
-		cut--
-	}
-	return cut
+	return core.SplitReply(response, discordSafeMessageLimit)
 }

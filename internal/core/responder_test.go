@@ -46,9 +46,10 @@ func TestTextOnly_reports_the_rich_verbs_as_unsupported(t *testing.T) {
 	_, cardErr := responder.Card(ctx, Card{Title: "Poll"})
 	editErr := responder.Edit(ctx, "card-1", Card{Title: "Poll"})
 	answerErr := responder.Answer(ctx, "only you see this")
+	deferErr := responder.Defer(ctx)
 
 	// Then
-	for verb, err := range map[string]error{"Card": cardErr, "Edit": editErr, "Answer": answerErr} {
+	for verb, err := range map[string]error{"Card": cardErr, "Edit": editErr, "Answer": answerErr, "Defer": deferErr} {
 		if !errors.Is(err, ErrUnsupported) {
 			t.Fatalf("expected %s to report ErrUnsupported, got %v", verb, err)
 		}

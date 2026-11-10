@@ -535,7 +535,7 @@ func TestHandleAmbient_stays_silent_when_the_session_state_cannot_be_read(t *tes
 }
 
 func TestRoute_names(t *testing.T) {
-	for route, want := range map[Route]string{RouteNone: "none", RouteCommand: "command", RouteConversation: "conversation", RouteFollowUp: "follow-up", RouteAmbient: "ambient", Route(42): "Route(42)"} {
+	for route, want := range map[Route]string{RouteNone: "none", RouteCommand: "command", RouteConversation: "conversation", RouteFollowUp: "follow-up", RouteAmbient: "ambient", RouteButton: "button", Route(42): "Route(42)"} {
 		if got := route.String(); got != want {
 			t.Fatalf("expected %q, got %q", want, got)
 		}

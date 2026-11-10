@@ -31,6 +31,8 @@ const (
 	// RouteAmbient: the message continues a conversation the sender was
 	// just having with the bot, without addressing it.
 	RouteAmbient
+	// RouteButton: a button on one of the bot's cards was pressed.
+	RouteButton
 )
 
 func (r Route) String() string {
@@ -45,6 +47,8 @@ func (r Route) String() string {
 		return "follow-up"
 	case RouteAmbient:
 		return "ambient"
+	case RouteButton:
+		return "button"
 	default:
 		return fmt.Sprintf("Route(%d)", int(r))
 	}
@@ -54,8 +58,19 @@ func (r Route) String() string {
 type Command struct {
 	// Name is the word, in lower case.
 	Name string
+	// Description says what the command does, in one line, for a list of
+	// commands. A front end that keeps its own list leaves it empty.
+	Description string
 	// Run carries the command out. It answers through the Responder, or by
 	// whatever means the front end that registered it has.
+	Run func(ctx context.Context, in Inbound, r Responder)
+}
+
+// Button is what the bot does when a button on one of its cards is pressed.
+type Button struct {
+	// Prefix is how the ids of the buttons it handles begin.
+	Prefix string
+	// Run handles the press. It answers through the Responder.
 	Run func(ctx context.Context, in Inbound, r Responder)
 }
 
@@ -69,10 +84,15 @@ type Dispatcher struct {
 	// Commands are the commands a message can address, in the order they
 	// are looked up.
 	Commands []Command
+	// Buttons handle the presses of the buttons on the bot's cards, in the
+	// order they are looked up.
+	Buttons []Button
 }
 
 // Dispatch routes a message to exactly one handler and reports which:
 //
+//   - a typed command goes to the command of that name, and a button press
+//     to the handler of that button; neither ever reaches the conversation
 //   - a message that addresses the bot goes to the command its command word
 //     names, or else to the conversation; it never falls through to the
 //     handlers below, even when it is answered with silence
@@ -82,6 +102,12 @@ type Dispatcher struct {
 // The front end checks that it would answer the sender at all before it
 // calls Dispatch.
 func (d *Dispatcher) Dispatch(ctx context.Context, in Inbound, desc Describer, r Responder) Route {
+	switch in.Kind {
+	case KindCommand:
+		return d.HandleCommand(ctx, in, r)
+	case KindButton:
+		return d.HandleButton(ctx, in, r)
+	}
 	if in.Addressed {
 		return d.HandleAddressed(ctx, in, desc, r)
 	}
@@ -89,6 +115,29 @@ func (d *Dispatcher) Dispatch(ctx context.Context, in Inbound, desc Describer, r
 		return route
 	}
 	return d.HandleAmbient(ctx, in, desc, r)
+}
+
+// HandleCommand runs the command a typed command names. An unknown name
+// goes nowhere: the model is never asked what a command might have meant.
+func (d *Dispatcher) HandleCommand(ctx context.Context, in Inbound, r Responder) Route {
+	for _, cmd := range d.Commands {
+		if cmd.Name == in.Command {
+			cmd.Run(ctx, in, r)
+			return RouteCommand
+		}
+	}
+	return RouteNone
+}
+
+// HandleButton runs the handler of the button that was pressed.
+func (d *Dispatcher) HandleButton(ctx context.Context, in Inbound, r Responder) Route {
+	for _, button := range d.Buttons {
+		if strings.HasPrefix(in.ButtonID, button.Prefix) {
+			button.Run(ctx, in, r)
+			return RouteButton
+		}
+	}
+	return RouteNone
 }
 
 // HandleAddressed handles a message that addresses the bot: it runs the
@@ -128,7 +177,10 @@ func (d *Dispatcher) HandleAddressed(ctx context.Context, in Inbound, desc Descr
 // when the answer went out. It does nothing when the bot's address is not
 // in the text, and says so when the address is all there is.
 func (d *Dispatcher) AddressedConversation(ctx context.Context, in Inbound, desc Describer, r Responder) error {
-	userMessage, ok := AddressedText(in.Text, in.AddressForms)
+	userMessage, ok := strings.TrimSpace(in.Text), true
+	if !in.Plain {
+		userMessage, ok = AddressedText(in.Text, in.AddressForms)
+	}
 	if !ok {
 		return nil
 	}

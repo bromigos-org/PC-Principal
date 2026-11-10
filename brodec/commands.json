@@ -1,0 +1,27 @@
+{
+  "commands": [
+    {
+      "name": "help",
+      "description": "What I do here, and what I see.",
+      "where": "everywhere"
+    },
+    {
+      "name": "ping",
+      "description": "Check that I'm awake.",
+      "where": "everywhere"
+    },
+    {
+      "name": "poll",
+      "description": "Ask the room: /poll Question | A | B",
+      "options": [
+        {
+          "name": "poll",
+          "description": "The question, then the choices, with | between them",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "where": "groups"
+    }
+  ]
+}

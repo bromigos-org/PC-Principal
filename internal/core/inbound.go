@@ -2,14 +2,35 @@ package core
 
 import "context"
 
-// PlatformDiscord is the value of Inbound.Platform for the Discord front end.
-const PlatformDiscord = "discord"
+// PlatformDiscord and PlatformBRODEC are the values of Inbound.Platform for
+// the two front ends.
+const (
+	PlatformDiscord = "discord"
+	PlatformBRODEC  = "brodec"
+)
+
+// Kind says what an Inbound is.
+type Kind int
+
+const (
+	// KindMessage is something a person wrote. It is the zero value.
+	KindMessage Kind = iota
+	// KindCommand is a command the platform parsed for the bot (a typed
+	// "/poll ..."). Command holds its name and Args what followed it.
+	KindCommand
+	// KindButton is a press of a button on one of the bot's cards. ButtonID
+	// holds the id the card gave the button.
+	KindButton
+)
 
 // Inbound is one message as the brain sees it, whatever platform it came
 // from.
 type Inbound struct {
 	// Platform names the front end that received the message.
 	Platform string
+	// Kind says whether this is a message, a typed command or a button
+	// press.
+	Kind Kind
 	// MessageID is the platform's id of the message.
 	MessageID string
 	// SpaceID is the community the room belongs to (a Discord guild). It is
@@ -37,10 +58,19 @@ type Inbound struct {
 	// message can be Addressed and contain none of them (a Discord reply
 	// that pings the bot); the conversation then stays silent.
 	AddressForms []string
+	// Plain is true when Text is already what was said to the bot: the
+	// front end cut the bot's address out, or the platform never writes one
+	// into the text. AddressForms is then not looked at.
+	Plain bool
 	// Command is the word that would name a command if one is registered
 	// under it, in lower case, or empty. The front end decides where a
-	// command word sits in a message.
+	// command word sits in a message. For a KindCommand it is the command's
+	// name.
 	Command string
+	// Args is what was typed after the name of a KindCommand.
+	Args string
+	// ButtonID is the id of the button a KindButton pressed.
+	ButtonID string
 }
 
 // Reference points at the message an Inbound replies to.
@@ -49,6 +79,10 @@ type Reference struct {
 	SenderID  string
 	// FromBot is true when the referenced message was written by this bot.
 	FromBot bool
+	// Text is what the referenced message said, when the platform hands it
+	// over with the reply. The conversation shows it to the model for the
+	// one answer and does not keep it.
+	Text string
 }
 
 // Describer tells the brain who is speaking and where, in the words that go

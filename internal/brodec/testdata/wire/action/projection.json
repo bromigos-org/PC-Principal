@@ -1,0 +1,1 @@
+{"type":"projection","projection":{"schema":1,"id":"poll/movie","kind":"list","label":"POLL","title":"MOVIE TONIGHT","hint":"","list":{"title":"VOTES","rows":[{"label":"ARRIVAL","detail":"3","progress":0.6,"state":"ok"},{"label":"HEAT","detail":"2","progress":0.4,"state":"unknown"}]},"summary":"ARRIVAL leads HEAT, 3 votes to 2"}}

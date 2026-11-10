@@ -223,10 +223,28 @@ and `GNOSIS_SERVICE_TOKEN` are set.
 | `DISCORD_HISTORY_BACKFILL_AGENT_ID` | `pc-principal` |
 | `DISCORD_HISTORY_BACKFILL_MAX_CHANNELS` | `25` |
 | `DISCORD_HISTORY_BACKFILL_MAX_MESSAGES_PER_CHANNEL` | `500` |
-| `DISCORD_HISTORY_BACKFILL_GNOSIS_BATCH_SIZE` | `50` |
+| `DISCORD_HISTORY_BACKFILL_GNOSIS_BATCH_SIZE` | `25` (at most `100`) |
 | `DISCORD_HISTORY_BACKFILL_REQUEST_DELAY` | `250ms` |
 | `DISCORD_HISTORY_BACKFILL_BACKOFF` | `1s` |
 | `DISCORD_HISTORY_BACKFILL_MAX_ATTEMPTS` | `3` |
+
+### How events reach gnosis
+
+Events go to `POST /v1/events/batch`, at most 100 per request. gnosis handles
+the events of a batch one after another, so a larger batch needs longer.
+
+- **Live events** (a message, a reaction, a channel or member change) are
+  sent once, with the same 5 second timeout as every other gnosis call. A slow
+  gnosis never holds up a reply.
+- **The startup snapshot and the history backfill** send batches of 25. A
+  batch is allowed 5 seconds plus 1 second for every event after the first.
+  A batch that times out or hits a server error is sent again, up to 3
+  times, with a growing wait in between. If it still fails, the rest of that
+  snapshot or backfill run is dropped and picked up on the next start.
+
+Sending a batch again is safe. Every event carries an idempotency key, and
+gnosis answers `duplicate` for the events it already has, including those of
+a request the bot had stopped waiting for.
 
 ### Attachment copy
 

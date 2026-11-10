@@ -14,9 +14,7 @@ import (
 
 const discordPageLimit = 100
 
-type MemoryClient interface {
-	IngestEvents(ctx context.Context, events []memory.ClientEvent) (memory.ClientEventBatchResponse, error)
-}
+type MemoryClient = memory.EventIngester
 
 type WorkerDeps struct {
 	Discord DiscordClient
@@ -136,20 +134,8 @@ func (w Worker) ingestMessages(ctx context.Context, guildID string, messages []*
 }
 
 func (w Worker) ingestEvents(ctx context.Context, events []memory.ClientEvent) error {
-	if len(events) == 0 {
-		return nil
-	}
-	for start := 0; start < len(events); start += w.config.MemoryBatchSize {
-		end := min(start+w.config.MemoryBatchSize, len(events))
-		batch := events[start:end]
-		if err := w.withRetry(ctx, func() error {
-			_, err := w.deps.Memory.IngestEvents(ctx, batch)
-			return err
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err := memory.IngestEventsInBatches(ctx, w.deps.Memory, events, memory.BatchIngestConfig{BatchSize: w.config.MemoryBatchSize, MaxAttempts: w.config.MaxAttempts, Backoff: w.config.Backoff})
+	return err
 }
 
 func (w Worker) reachedChannelLimit(visited int) bool {
@@ -218,10 +204,6 @@ func isPermissionDenied(err error) bool {
 }
 
 func isTransient(err error) bool {
-	var memoryErr *memory.Error
-	if errors.As(err, &memoryErr) {
-		return memoryErr.Kind == memory.ErrorKindTimeout || memoryErr.Kind == memory.ErrorKindServer || memoryErr.Kind == memory.ErrorKindUnexpected
-	}
 	var restErr *discordgo.RESTError
 	if errors.As(err, &restErr) && restErr.Response != nil {
 		return restErr.Response.StatusCode == http.StatusTooManyRequests || restErr.Response.StatusCode >= http.StatusInternalServerError

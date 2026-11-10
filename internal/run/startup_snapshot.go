@@ -1,6 +1,7 @@
 package run
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -11,6 +12,12 @@ import (
 )
 
 const startupSnapshotPageLimit = 100
+
+// startupSnapshotIngest sends the startup snapshot in small batches and
+// retries a batch that times out, with a growing wait. If a batch still
+// cannot be delivered, the rest of the snapshot is dropped: it is sent again
+// on the next start, and live events keep the topology current meanwhile.
+var startupSnapshotIngest = memory.BatchIngestConfig{BatchSize: memory.DefaultEventBatchSize, MaxAttempts: 3, Backoff: 2 * time.Second}
 
 func ingestStartupSnapshot(s *discordgo.Session, event *discordgo.Ready) {
 	if s == nil || event == nil {
@@ -112,5 +119,15 @@ func ingestGuildSnapshot(normalizer discordevent.Normalizer, guild *discordgo.Gu
 	for _, member := range guild.Members {
 		events = append(events, normalizer.NormalizeMemberUpdate(member)...)
 	}
-	ingestLiveTopology("startup snapshot", events)
+	if len(events) == 0 {
+		return
+	}
+	summary, err := memory.IngestEventsInBatches(context.Background(), liveMemory, events, startupSnapshotIngest)
+	if err != nil {
+		log.Printf("gnosis live startup snapshot ingest failed: guild=%s delivered %d of %d events, retries=%d: %v", guild.ID, summary.Events, len(events), summary.Retries, err)
+		return
+	}
+	if summary.Accepted+summary.Duplicates > 0 {
+		log.Printf("gnosis live startup snapshot ingested: guild=%s events=%d accepted=%d duplicate=%d batches=%d retries=%d", guild.ID, summary.Events, summary.Accepted, summary.Duplicates, summary.Batches, summary.Retries)
+	}
 }

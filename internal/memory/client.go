@@ -13,8 +13,18 @@ import (
 )
 
 const (
+	// defaultTimeout bounds one request. It is short on purpose: recall and
+	// write-back sit on the path of a reply, and a slow gnosis must not hold
+	// the reply up.
 	defaultTimeout = 5 * time.Second
-	defaultTenant  = "bromigos"
+	// eventBatchTimeoutPerEvent is the extra time an event batch gets for
+	// every event after the first. gnosis works through a batch one event at
+	// a time, so the time a batch needs grows with its size. One event keeps
+	// defaultTimeout.
+	eventBatchTimeoutPerEvent = time.Second
+	// maxEventBatchTimeout caps the time allowed for one event batch.
+	maxEventBatchTimeout = 2 * time.Minute
+	defaultTenant        = "bromigos"
 )
 
 type Role string
@@ -59,6 +69,10 @@ type HTTPClient struct {
 	baseURL    string
 	token      string
 	enabled    bool
+	// requestTimeout and batchTimeoutPerEvent are fields so tests can shorten
+	// them; NewClient sets them from the constants above.
+	requestTimeout       time.Duration
+	batchTimeoutPerEvent time.Duration
 }
 
 type messageWriteRequest struct {
@@ -82,13 +96,17 @@ func LoadConfigFromEnv() Config {
 
 func NewClient(config Config, httpClient *http.Client) *HTTPClient {
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: defaultTimeout}
+		// No client-wide timeout: every request carries its own deadline, and
+		// an event batch is allowed longer than the other calls.
+		httpClient = &http.Client{}
 	}
 	return &HTTPClient{
-		httpClient: httpClient,
-		baseURL:    strings.TrimRight(config.BaseURL, "/"),
-		token:      config.Token,
-		enabled:    config.Enabled && config.BaseURL != "" && config.Token != "",
+		httpClient:           httpClient,
+		baseURL:              strings.TrimRight(config.BaseURL, "/"),
+		token:                config.Token,
+		enabled:              config.Enabled && config.BaseURL != "" && config.Token != "",
+		requestTimeout:       defaultTimeout,
+		batchTimeoutPerEvent: eventBatchTimeoutPerEvent,
 	}
 }
 
@@ -101,7 +119,7 @@ func (c *HTTPClient) AddMessage(ctx context.Context, message Message) error {
 	if err != nil {
 		return fmt.Errorf("encode message request: %w", err)
 	}
-	responseBytes, err := c.post(ctx, "/v1/messages", requestBytes)
+	responseBytes, err := c.post(ctx, "/v1/messages", requestBytes, c.requestTimeout)
 	if err != nil {
 		return fmt.Errorf("write memory message: %w", err)
 	}
@@ -125,7 +143,7 @@ func (c *HTTPClient) IngestEvents(ctx context.Context, events []ClientEvent) (Cl
 	if !c.enabled {
 		return response, nil
 	}
-	if err := c.postJSON(ctx, "/v1/events/batch", ClientEventBatchRequest{Events: events}, &response); err != nil {
+	if err := c.postJSONWithin(ctx, c.eventBatchTimeout(len(events)), "/v1/events/batch", ClientEventBatchRequest{Events: events}, &response); err != nil {
 		return response, fmt.Errorf("ingest memory events: %w", err)
 	}
 	if hasPartialFailure(response.Results) {
@@ -181,7 +199,15 @@ func (c *HTTPClient) RecordSkillUsage(ctx context.Context, usage SkillUsage) err
 	return nil
 }
 
-func (c *HTTPClient) post(ctx context.Context, path string, body []byte) ([]byte, error) {
+// eventBatchTimeout is the time allowed for one batch of the given size.
+func (c *HTTPClient) eventBatchTimeout(events int) time.Duration {
+	timeout := c.requestTimeout + time.Duration(max(events-1, 0))*c.batchTimeoutPerEvent
+	return min(timeout, max(maxEventBatchTimeout, c.requestTimeout))
+}
+
+func (c *HTTPClient) post(ctx context.Context, path string, body []byte, timeout time.Duration) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
@@ -205,11 +231,15 @@ func (c *HTTPClient) post(ctx context.Context, path string, body []byte) ([]byte
 }
 
 func (c *HTTPClient) postJSON(ctx context.Context, path string, request any, response any) error {
+	return c.postJSONWithin(ctx, c.requestTimeout, path, request, response)
+}
+
+func (c *HTTPClient) postJSONWithin(ctx context.Context, timeout time.Duration, path string, request any, response any) error {
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("encode request: %w", err)
 	}
-	responseBytes, err := c.post(ctx, path, requestBytes)
+	responseBytes, err := c.post(ctx, path, requestBytes, timeout)
 	if err != nil {
 		return err
 	}

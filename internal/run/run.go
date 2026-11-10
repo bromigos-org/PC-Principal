@@ -18,10 +18,13 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const (
-	pcPrincipalAgentID       = "pc-principal"
-	liveMemoryEventBatchSize = 100
-)
+const pcPrincipalAgentID = "pc-principal"
+
+// liveEventIngest sends the events of one live Discord event once, with the
+// short timeout every other gnosis call has. A live event is not retried and
+// not given longer: its handler may still have a command or a reply to get
+// to, and a slow gnosis must not hold that up.
+var liveEventIngest = memory.BatchIngestConfig{BatchSize: memory.DefaultEventBatchSize, MaxAttempts: 1, RequestTimeout: 5 * time.Second}
 
 var (
 	liveMemory               memory.Client = memory.NewClient(memory.Config{}, nil)
@@ -150,7 +153,7 @@ func configureAmbientReplies() {
 func ingestLiveMessage(message *discordgo.MessageCreate) {
 	ctx := context.Background()
 	normalizer := discordevent.New(discordevent.Config{TenantID: liveMemoryTenantID, AgentID: pcPrincipalAgentID, SourceMarker: discordevent.SourceMarkerLive, ObservedAt: time.Now().UTC(), AttachmentCopy: liveAttachmentCopyConfig})
-	if _, err := liveMemory.IngestEvents(ctx, normalizer.NormalizeMessageCreateWithContext(ctx, message.Message)); err != nil {
+	if _, err := memory.IngestEventsInBatches(ctx, liveMemory, normalizer.NormalizeMessageCreateWithContext(ctx, message.Message), liveEventIngest); err != nil {
 		log.Printf("gnosis live message ingest failed: %v", err)
 	}
 }
@@ -240,14 +243,8 @@ func ingestLiveTopology(label string, events []memory.ClientEvent) {
 	if len(events) == 0 {
 		return
 	}
-	for start := 0; start < len(events); start += liveMemoryEventBatchSize {
-		end := start + liveMemoryEventBatchSize
-		if end > len(events) {
-			end = len(events)
-		}
-		if _, err := liveMemory.IngestEvents(context.Background(), events[start:end]); err != nil {
-			log.Printf("gnosis live %s ingest failed: %v", label, err)
-		}
+	if _, err := memory.IngestEventsInBatches(context.Background(), liveMemory, events, liveEventIngest); err != nil {
+		log.Printf("gnosis live %s ingest failed: %v", label, err)
 	}
 }
 

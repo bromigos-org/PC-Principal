@@ -1,7 +1,7 @@
 # PC-Principal
 
 [![CI](https://github.com/bromigos-org/PC-Principal/actions/workflows/ci-tests.yml/badge.svg?branch=main)](https://github.com/bromigos-org/PC-Principal/actions/workflows/ci-tests.yml)
-[![Go 1.24](https://img.shields.io/badge/go-1.24-00ADD8?logo=go&logoColor=white)](go.mod)
+[![Go 1.27](https://img.shields.io/badge/go-1.27-00ADD8?logo=go&logoColor=white)](go.mod)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 PC-Principal is the Bromigos Discord bot. It is written in Go on top of
@@ -145,13 +145,14 @@ The bot degrades instead of crashing.
 | Dragonfly | History does not persist, and `chat` threads get no follow-ups. Ambient replies and backfill are skipped. |
 | LLM endpoint | The bot replies with an error message in the channel. |
 | `DISCORD_BOT_TOKEN` | The bot logs a warning and exits. |
+| Discord gateway | The library reconnects on its own. If the gateway stays silent for 5 minutes, `/health` fails; after 7 minutes the bot exits so it gets restarted. |
 
 ## Run it locally
 
 You need:
 
-- Go 1.24 or later. With an older Go, prefix commands with
-  `GOTOOLCHAIN=go1.24.0` to fetch the right toolchain.
+- Go 1.27 or later. With an older Go, prefix commands with
+  `GOTOOLCHAIN=go1.27.3` to fetch the right toolchain.
 - A Discord bot token. In the Discord developer portal, turn on the Message
   Content, Server Members and Presence intents.
 - An OpenAI-compatible chat endpoint and its API key.
@@ -222,10 +223,28 @@ and `GNOSIS_SERVICE_TOKEN` are set.
 | `DISCORD_HISTORY_BACKFILL_AGENT_ID` | `pc-principal` |
 | `DISCORD_HISTORY_BACKFILL_MAX_CHANNELS` | `25` |
 | `DISCORD_HISTORY_BACKFILL_MAX_MESSAGES_PER_CHANNEL` | `500` |
-| `DISCORD_HISTORY_BACKFILL_GNOSIS_BATCH_SIZE` | `50` |
+| `DISCORD_HISTORY_BACKFILL_GNOSIS_BATCH_SIZE` | `25` (at most `100`) |
 | `DISCORD_HISTORY_BACKFILL_REQUEST_DELAY` | `250ms` |
 | `DISCORD_HISTORY_BACKFILL_BACKOFF` | `1s` |
 | `DISCORD_HISTORY_BACKFILL_MAX_ATTEMPTS` | `3` |
+
+### How events reach gnosis
+
+Events go to `POST /v1/events/batch`, at most 100 per request. gnosis handles
+the events of a batch one after another, so a larger batch needs longer.
+
+- **Live events** (a message, a reaction, a channel or member change) are
+  sent once, with the same 5 second timeout as every other gnosis call. A slow
+  gnosis never holds up a reply.
+- **The startup snapshot and the history backfill** send batches of 25. A
+  batch is allowed 5 seconds plus 1 second for every event after the first.
+  A batch that times out or hits a server error is sent again, up to 3
+  times, with a growing wait in between. If it still fails, the rest of that
+  snapshot or backfill run is dropped and picked up on the next start.
+
+Sending a batch again is safe. Every event carries an idempotency key, and
+gnosis answers `duplicate` for the events it already has, including those of
+a request the bot had stopped waiting for.
 
 ### Attachment copy
 
@@ -273,7 +292,9 @@ docker run --env-file .env -p 8080:8080 pc-principal
 
 CI lives in `.github/workflows/ci-tests.yml`.
 
-- Every push and pull request to `main` runs `go test -v ./...`.
+- Every push and pull request to `main` runs `go vet ./...`,
+  `go test -v ./...` and `govulncheck ./...`. A known vulnerability that the
+  code can reach fails the run.
 - A push to `main` that passes the tests builds and pushes
   `ghcr.io/bromigos-org/pc-principal`. It is tagged with the commit SHA and
   `latest`.
@@ -290,11 +311,26 @@ out, revert the bot and gnosis together.
 `GET /health` and `GET /healthz` on port 8080 return JSON like this.
 
 ```json
-{"status": "ok", "checks": {"discord": "ready", "dragonfly": "ok"}, "checkedAt": "2026-10-09T17:00:00Z"}
+{"status": "ok", "checks": {"discord": "ready", "dragonfly": "ok", "gateway": "connected, heartbeat ack age 12s"}, "checkedAt": "2026-10-09T17:00:00Z"}
 ```
 
-The HTTP status is always `200` while the process is up. `status` becomes
-`degraded` when Discord is not ready or Dragonfly is unreachable.
+- `200` with `"status": "ok"` while the Discord gateway is connected and
+  Discord keeps acknowledging heartbeats.
+- `200` with `"status": "degraded"` when Dragonfly is unreachable, or when the
+  gateway has gone quiet but is still inside its allowance. A restart fixes
+  neither.
+- `503` with `"status": "unhealthy"` once the gateway has been silent for
+  more than 5 minutes: no connection, or a connection on which Discord has
+  stopped acknowledging heartbeats. Point a Kubernetes liveness probe at
+  `/health` and the pod is restarted when the bot is running but offline.
+
+The bot also watches itself. After 90 seconds of silence it logs the gateway
+state and the heartbeat's age on every check. At 5 minutes it logs a
+goroutine dump, which shows where a reconnect is stuck. At 7 minutes it exits
+with status 1, so a supervisor without a health probe (`docker run
+--restart`, systemd) restarts it too. While all is well it logs one status
+line every 15 minutes, and the Discord library's connect, resume and
+reconnect messages are logged as they happen.
 
 ## Project layout
 
@@ -302,6 +338,7 @@ The HTTP status is always `200` while the process is up. `status` becomes
 |---|---|
 | `cmd/pc-principal/` | Entry point. |
 | `internal/run/` | Startup, Discord event handlers and the health server. |
+| `internal/gateway/` | Watchdog for the Discord gateway connection. |
 | `internal/commands/` | Commands, conversations and prompt assembly. |
 | `internal/memory/` | HTTP client for gnosis. |
 | `internal/discordevent/` | Turns Discord events into gnosis events. |

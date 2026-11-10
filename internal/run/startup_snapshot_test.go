@@ -1,12 +1,17 @@
 package run
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/bromigos-org/pc-principal/internal/discordevent"
 	"github.com/bromigos-org/pc-principal/internal/memory"
 	"github.com/bwmarrin/discordgo"
 )
@@ -194,4 +199,84 @@ func encodeJSON(t *testing.T, value interface{}) string {
 		t.Fatalf("encode Discord REST body: %v", err)
 	}
 	return string(body)
+}
+
+// flakyMemoryClient fails the first calls to IngestEvents with a timeout and
+// answers "accepted" for every event after that.
+type flakyMemoryClient struct {
+	fakeLiveMemoryClient
+	failures int
+	calls    [][]memory.ClientEvent
+}
+
+func (c *flakyMemoryClient) IngestEvents(ctx context.Context, events []memory.ClientEvent) (memory.ClientEventBatchResponse, error) {
+	c.calls = append(c.calls, append([]memory.ClientEvent(nil), events...))
+	if len(c.calls) <= c.failures {
+		return memory.ClientEventBatchResponse{}, &memory.Error{Kind: memory.ErrorKindTimeout, Operation: "send request", Err: context.DeadlineExceeded}
+	}
+	results := make([]memory.EventIngestResult, 0, len(events))
+	for _, event := range events {
+		results = append(results, memory.EventIngestResult{EventID: event.EventID, Status: memory.EventIngestStatusAccepted})
+	}
+	return memory.ClientEventBatchResponse{Results: results}, nil
+}
+
+func snapshotGuildWithRoles(count int) *discordgo.Guild {
+	guild := &discordgo.Guild{ID: "guild-1"}
+	for id := 0; id < count; id++ {
+		guild.Roles = append(guild.Roles, &discordgo.Role{ID: "role-" + strconv.Itoa(id), Name: "Role"})
+	}
+	return guild
+}
+
+func useStartupSnapshotBackoff(t *testing.T, backoff time.Duration) {
+	t.Helper()
+	previous := startupSnapshotIngest
+	startupSnapshotIngest.Backoff = backoff
+	t.Cleanup(func() { startupSnapshotIngest = previous })
+}
+
+func TestIngestGuildSnapshot_sends_small_batches_and_retries_one_that_times_out(t *testing.T) {
+	// Given
+	memoryClient := &flakyMemoryClient{failures: 2}
+	configureLiveMessageIngestion(memoryClient, "tenant-1")
+	t.Cleanup(func() { configureLiveMessageIngestion(memory.NewClient(memory.Config{}, nil), "bromigos") })
+	useStartupSnapshotBackoff(t, time.Millisecond)
+	normalizer := discordevent.New(discordevent.Config{TenantID: "tenant-1", AgentID: pcPrincipalAgentID, SourceMarker: discordevent.SourceMarkerBackfill, ObservedAt: time.Now().UTC()})
+
+	// When
+	ingestGuildSnapshot(normalizer, snapshotGuildWithRoles(60))
+
+	// Then: the first batch is sent three times, then the other two once each.
+	sizes := make([]int, 0, len(memoryClient.calls))
+	for _, call := range memoryClient.calls {
+		sizes = append(sizes, len(call))
+	}
+	if want := []int{25, 25, 25, 25, 10}; !slices.Equal(sizes, want) {
+		t.Fatalf("batch sizes = %v, want %v", sizes, want)
+	}
+	for attempt := 1; attempt <= 2; attempt++ {
+		for i, event := range memoryClient.calls[attempt] {
+			if first := memoryClient.calls[0][i]; event.IdempotencyKey != first.IdempotencyKey || event.EventID != first.EventID {
+				t.Fatalf("attempt %d event %d = %s, want the same event as the first attempt (%s)", attempt+1, i, event.IdempotencyKey, first.IdempotencyKey)
+			}
+		}
+	}
+}
+
+func TestIngestGuildSnapshot_stops_after_a_batch_that_keeps_failing(t *testing.T) {
+	// Given
+	memoryClient := &flakyMemoryClient{failures: 1000}
+	configureLiveMessageIngestion(memoryClient, "tenant-1")
+	t.Cleanup(func() { configureLiveMessageIngestion(memory.NewClient(memory.Config{}, nil), "bromigos") })
+	useStartupSnapshotBackoff(t, time.Millisecond)
+	normalizer := discordevent.New(discordevent.Config{TenantID: "tenant-1", AgentID: pcPrincipalAgentID, SourceMarker: discordevent.SourceMarkerBackfill, ObservedAt: time.Now().UTC()})
+
+	// When
+	ingestGuildSnapshot(normalizer, snapshotGuildWithRoles(60))
+
+	// Then: three attempts at the first batch, and the other batches are not sent.
+	if len(memoryClient.calls) != 3 {
+		t.Fatalf("ingest calls = %d, want 3", len(memoryClient.calls))
+	}
 }

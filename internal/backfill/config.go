@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bromigos-org/pc-principal/internal/memory"
 )
 
 const (
@@ -12,7 +14,7 @@ const (
 	defaultAgentID               = "pc-principal"
 	defaultMaxChannelsPerRun     = 25
 	defaultMaxMessagesPerChannel = 500
-	defaultMemoryBatchSize       = 50
+	defaultMemoryBatchSize       = memory.DefaultEventBatchSize
 	defaultRequestDelay          = 250 * time.Millisecond
 	defaultBackoff               = time.Second
 	defaultMaxAttempts           = 3

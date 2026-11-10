@@ -18,10 +18,13 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const (
-	pcPrincipalAgentID       = "pc-principal"
-	liveMemoryEventBatchSize = 100
-)
+const pcPrincipalAgentID = "pc-principal"
+
+// liveEventIngest sends the events of one live Discord event once, with the
+// short timeout every other gnosis call has. A live event is not retried and
+// not given longer: its handler may still have a command or a reply to get
+// to, and a slow gnosis must not hold that up.
+var liveEventIngest = memory.BatchIngestConfig{BatchSize: memory.DefaultEventBatchSize, MaxAttempts: 1, RequestTimeout: 5 * time.Second}
 
 var (
 	liveMemory               memory.Client = memory.NewClient(memory.Config{}, nil)
@@ -81,6 +84,8 @@ func Init() {
 
 	dg.Identify.Intents = discordIntents()
 
+	watchGateway(dg)
+
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
 	if err != nil {
@@ -95,7 +100,7 @@ func Init() {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	dg.Close() // Cleanly close down the Discord session.
+	closeSession(dg, sessionCloseTimeout) // Cleanly close down the Discord session.
 }
 
 func discordIntents() discordgo.Intent {
@@ -148,7 +153,7 @@ func configureAmbientReplies() {
 func ingestLiveMessage(message *discordgo.MessageCreate) {
 	ctx := context.Background()
 	normalizer := discordevent.New(discordevent.Config{TenantID: liveMemoryTenantID, AgentID: pcPrincipalAgentID, SourceMarker: discordevent.SourceMarkerLive, ObservedAt: time.Now().UTC(), AttachmentCopy: liveAttachmentCopyConfig})
-	if _, err := liveMemory.IngestEvents(ctx, normalizer.NormalizeMessageCreateWithContext(ctx, message.Message)); err != nil {
+	if _, err := memory.IngestEventsInBatches(ctx, liveMemory, normalizer.NormalizeMessageCreateWithContext(ctx, message.Message), liveEventIngest); err != nil {
 		log.Printf("gnosis live message ingest failed: %v", err)
 	}
 }
@@ -238,32 +243,23 @@ func ingestLiveTopology(label string, events []memory.ClientEvent) {
 	if len(events) == 0 {
 		return
 	}
-	for start := 0; start < len(events); start += liveMemoryEventBatchSize {
-		end := start + liveMemoryEventBatchSize
-		if end > len(events) {
-			end = len(events)
-		}
-		if _, err := liveMemory.IngestEvents(context.Background(), events[start:end]); err != nil {
-			log.Printf("gnosis live %s ingest failed: %v", label, err)
-		}
+	if _, err := memory.IngestEventsInBatches(context.Background(), liveMemory, events, liveEventIngest); err != nil {
+		log.Printf("gnosis live %s ingest failed: %v", label, err)
 	}
 }
 
 // onReady is called when the bot is ready to start receiving events.
 func onReady(s *discordgo.Session, event *discordgo.Ready) {
 	log.Println("Bot is ready.")
-	SetDiscordReady(true)
 	ingestStartupSnapshot(s, event)
 }
 
 // onDisconnect is called when the bot disconnects from Discord.
 func onDisconnect(s *discordgo.Session, event *discordgo.Disconnect) {
 	log.Println("Bot disconnected.")
-	SetDiscordReady(false)
 }
 
 // onReconnect is called when the bot reconnects to Discord.
 func onReconnect(s *discordgo.Session, event *discordgo.Connect) {
 	log.Println("Bot reconnected.")
-	SetDiscordReady(true)
 }

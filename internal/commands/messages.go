@@ -63,6 +63,22 @@ func BotMention(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 }
 
+const mentionOnlyFallback = "Bro, I'm here. Say what you need after the mention."
+
+func handleMentionConversation(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	userMessage, ok := mentionConversationText(m.Content, s.State.User.ID)
+	if !ok {
+		return nil
+	}
+	if userMessage == "" {
+		return sendDiscordResponse(s, m.ChannelID, mentionOnlyFallback)
+	}
+	if err := conversation().Respond(context.Background(), inboundFromMessage(s, m), userMessage, discordDescriber{session: s, message: m}, respondTo(s, m)); err != nil {
+		return err
+	}
+	return recordAmbientActivation(m)
+}
+
 func AmbientReply(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if ambientManager == nil || m.Author == nil || m.Author.ID == s.State.User.ID || m.Author.Bot {
 		return

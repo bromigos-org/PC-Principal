@@ -1,4 +1,4 @@
-package commands
+package core
 
 import (
 	"context"
@@ -35,16 +35,16 @@ func (result conversationMemoryPromptResult) traceStatus() string {
 	return "error"
 }
 
-func conversationMemoryPrompt(ctx context.Context, request conversationMemoryPromptRequest) conversationMemoryPromptResult {
-	combined, err := conversationMemory.GetMemoryContext(ctx, memory.MemoryContextRequest{
+func (c *Conversation) memoryPrompt(ctx context.Context, request conversationMemoryPromptRequest) conversationMemoryPromptResult {
+	combined, err := c.Memory.GetMemoryContext(ctx, memory.MemoryContextRequest{
 		Scope:            request.scope,
 		Query:            request.query,
 		IncludeShortTerm: true,
 		IncludeLongTerm:  true,
 		IncludeReasoning: true,
 		IncludeGraph:     true,
-		MaxItems:         memoryContextLimit,
-		GraphLimit:       graphContextLimit,
+		MaxItems:         MemoryContextLimit,
+		GraphLimit:       GraphContextLimit,
 	})
 	if err == nil {
 		return conversationMemoryPromptResult{prompt: combinedMemoryPrompt(combined), hasShortTerm: hasShortTermMemorySection(combined), combinedContextSuccess: true, context: combined}

@@ -1,4 +1,4 @@
-package commands
+package core
 
 import (
 	"context"
@@ -6,10 +6,22 @@ import (
 	"strings"
 
 	"github.com/bromigos-org/pc-principal/internal/memory"
-	"github.com/bwmarrin/discordgo"
+)
+
+// These names go to gnosis in the reasoning trace of every answer. They say
+// Discord because Discord is the only front end so far, and they are kept
+// as they were so that the traces already stored and the ones written from
+// now on read the same.
+const (
+	traceTask         = "reply to Discord mention conversation"
+	traceSendTool     = "discord.message_send"
+	traceSendFailed   = "discord_send_failed"
+	traceSendStage    = "discord"
+	traceRoomArgument = "channel_id"
 )
 
 type conversationReasoningTrace struct {
+	memory     memory.Client
 	scope      memory.Scope
 	traceID    string
 	lastStepID string
@@ -24,16 +36,16 @@ func traceStatus(err error) string {
 	return "error"
 }
 
-func startConversationReasoningTrace(ctx context.Context, m *discordgo.MessageCreate, scope memory.Scope) conversationReasoningTrace {
-	response, err := conversationMemory.StartReasoningTrace(ctx, memory.ReasoningTraceStartRequest{
+func (c *Conversation) startReasoningTrace(ctx context.Context, in Inbound, scope memory.Scope) conversationReasoningTrace {
+	response, err := c.Memory.StartReasoningTrace(ctx, memory.ReasoningTraceStartRequest{
 		Scope:                scope,
 		SessionID:            scope.SessionID,
-		Task:                 "reply to Discord mention conversation",
-		TriggeredByMessageID: m.ID,
-		UserIdentifier:       m.Author.ID,
+		Task:                 traceTask,
+		TriggeredByMessageID: in.MessageID,
+		UserIdentifier:       in.SenderID,
 		Metadata: memory.JsonObject{
-			"channel_id": m.ChannelID,
-			"guild_id":   m.GuildID,
+			"channel_id": in.RoomID,
+			"guild_id":   in.SpaceID,
 			"agent_id":   scope.AgentID,
 		},
 	})
@@ -44,14 +56,14 @@ func startConversationReasoningTrace(ctx context.Context, m *discordgo.MessageCr
 	if strings.TrimSpace(response.TraceID) == "" {
 		return conversationReasoningTrace{}
 	}
-	return conversationReasoningTrace{scope: scope, traceID: response.TraceID, nextStep: 1, enabled: true}
+	return conversationReasoningTrace{memory: c.Memory, scope: scope, traceID: response.TraceID, nextStep: 1, enabled: true}
 }
 
 func (t *conversationReasoningTrace) recordStep(ctx context.Context, action string, observation string, metadata memory.JsonObject) {
 	if !t.enabled {
 		return
 	}
-	response, err := conversationMemory.AddReasoningStep(ctx, memory.ReasoningStepRequest{
+	response, err := t.memory.AddReasoningStep(ctx, memory.ReasoningStepRequest{
 		Scope:       t.scope,
 		TraceID:     t.traceID,
 		Action:      action,
@@ -83,7 +95,7 @@ func (t *conversationReasoningTrace) recordToolCall(ctx context.Context, toolNam
 	if status == "error" {
 		request.Error = "operation failed"
 	}
-	if _, err := conversationMemory.RecordReasoningToolCall(ctx, request); err != nil {
+	if _, err := t.memory.RecordReasoningToolCall(ctx, request); err != nil {
 		log.Printf("gnosis reasoning tool call failed: %v", err)
 	}
 }
@@ -92,7 +104,7 @@ func (t conversationReasoningTrace) complete(ctx context.Context, outcome string
 	if !t.enabled {
 		return
 	}
-	if _, err := conversationMemory.CompleteReasoningTrace(ctx, memory.ReasoningTraceCompleteRequest{
+	if _, err := t.memory.CompleteReasoningTrace(ctx, memory.ReasoningTraceCompleteRequest{
 		Scope:    t.scope,
 		TraceID:  t.traceID,
 		Outcome:  outcome,

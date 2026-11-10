@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bromigos-org/pc-principal/internal/store"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -34,24 +33,5 @@ func Chat(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	who := memberContext(s, m)
-	history := []store.Message{
-		{Role: "system", Content: pcPrincipalSystemPrompt},
-		{Role: "user", Content: fmt.Sprintf("[%s]: %s", who, topic)},
-	}
-
-	reply, err := generateAssistant(context.Background(), history)
-	if err != nil {
-		fmt.Printf("chat: LiteLLM error: %v\n", err)
-		s.ChannelMessageSend(thread.ID, "LiteLLM is NOT responding. I am livid. Check the logs.")
-		return
-	}
-
-	if err := sendDiscordResponse(s, thread.ID, reply); err != nil {
-		fmt.Printf("chat: send error: %v\n", err)
-	}
-
-	history = append(history, store.Message{Role: "assistant", Content: reply})
-	if err := store.Save(context.Background(), thread.ID, history); err != nil {
-		fmt.Printf("chat: store error: %v\n", err)
-	}
+	conversation().StartSession(context.Background(), thread.ID, who, topic, discordResponder{session: s, channelID: thread.ID})
 }

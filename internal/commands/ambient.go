@@ -19,7 +19,7 @@ func handleAmbientConversation(s *discordgo.Session, m *discordgo.MessageCreate)
 	if userMessage == "" {
 		return nil
 	}
-	if err := handleConversation(s, conversationRequest{Message: m, UserMessage: userMessage}); err != nil {
+	if err := conversation().Respond(context.Background(), inboundFromMessage(s, m), userMessage, discordDescriber{session: s, message: m}, respondTo(s, m)); err != nil {
 		return err
 	}
 	return recordAmbientReply(m.ChannelID)

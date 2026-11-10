@@ -10,6 +10,7 @@ import (
 // what the brain asked of it.
 type textResponder struct {
 	TextOnly
+	journal      *journal
 	acknowledged int
 	replies      []string
 	said         []string
@@ -17,16 +18,19 @@ type textResponder struct {
 }
 
 func (r *textResponder) Acknowledge(context.Context) error {
+	r.journal.add("acknowledge")
 	r.acknowledged++
 	return nil
 }
 
 func (r *textResponder) Reply(_ context.Context, text string) error {
+	r.journal.add("reply")
 	r.replies = append(r.replies, text)
 	return r.replyErr
 }
 
 func (r *textResponder) Say(_ context.Context, text string) error {
+	r.journal.add("say")
 	r.said = append(r.said, text)
 	return nil
 }

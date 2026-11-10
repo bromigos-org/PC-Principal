@@ -17,5 +17,5 @@ func HeyThreadHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	conversation().FollowUp(context.Background(), inboundFromMessage(s, m), discordDescriber{session: s, message: m}, respondTo(s, m))
+	dispatcher().HandleFollowUp(context.Background(), inboundFromMessage(s, m), discordDescriber{session: s, message: m}, respondTo(s, m))
 }

@@ -274,8 +274,13 @@ go test ./...
 
 The main test areas are listed below.
 
-- `internal/commands/` covers prompt assembly, memory rendering and
-  degradation.
+- `internal/core/` covers prompt assembly, memory scopes and rendering, and
+  the routing of a message to one handler.
+- `internal/commands/` covers the Discord handlers end to end, including
+  degradation when a service is down.
+- `internal/characterization/` compares what the bot does for fixed messages
+  with recorded transcripts. A change that is meant to leave Discord
+  behaviour alone must leave them untouched.
 - `internal/memory/` covers the gnosis client contract.
 - `internal/backfill/`, `internal/run/` and `internal/discordevent/` cover
   event capture and backfill.
@@ -339,7 +344,9 @@ reconnect messages are logged as they happen.
 | `cmd/pc-principal/` | Entry point. |
 | `internal/run/` | Startup, Discord event handlers and the health server. |
 | `internal/gateway/` | Watchdog for the Discord gateway connection. |
-| `internal/commands/` | Commands, conversations and prompt assembly. |
+| `internal/core/` | The bot's brain, free of any chat platform: persona, conversation, prompt assembly, memory recall and message routing. |
+| `internal/commands/` | The Discord front end: mention commands, voice channels, anonymous vent, and the adapter between Discord and the core. |
+| `internal/characterization/` | Recorded transcripts of the Discord conversation paths, as tests. |
 | `internal/memory/` | HTTP client for gnosis. |
 | `internal/discordevent/` | Turns Discord events into gnosis events. |
 | `internal/backfill/` | History backfill worker. |

@@ -29,6 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # One publish at a time, in push order, so an older commit can never
+    # overwrite the `latest` tag of a newer one.
+    concurrency:
+      group: publish-image
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write

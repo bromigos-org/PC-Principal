@@ -9,5 +9,8 @@ FROM alpine:3.24
 RUN apk --no-cache add ca-certificates
 WORKDIR /app
 COPY --from=builder /app/pc-principal .
+# The bot writes no files and listens on an unprivileged port, so it does not
+# need root.
+USER 10001:10001
 EXPOSE 8080
 CMD ["./pc-principal"]

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/bromigos-org/pc-principal/internal/gateway"
@@ -80,10 +81,25 @@ func healthHandler(monitor *gateway.Monitor) http.HandlerFunc {
 	}
 }
 
+// platformHealth is the health handler of a front end other than Discord,
+// once that front end has started. The health server starts before the
+// platform is known, so it asks on every request.
+var platformHealth atomic.Pointer[http.HandlerFunc]
+
+// serveHealth answers with the running front end's health: Discord's,
+// unless another front end has put its own in place.
+func serveHealth(w http.ResponseWriter, r *http.Request) {
+	if handler := platformHealth.Load(); handler != nil {
+		(*handler)(w, r)
+		return
+	}
+	healthHandler(gatewayMonitor)(w, r)
+}
+
 func StartHTTPServer() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler(gatewayMonitor))
-	mux.HandleFunc("/healthz", healthHandler(gatewayMonitor)) // k8s convention alias
+	mux.HandleFunc("/health", serveHealth)
+	mux.HandleFunc("/healthz", serveHealth) // k8s convention alias
 
 	go func() {
 		if err := http.ListenAndServe(":8080", mux); err != nil {

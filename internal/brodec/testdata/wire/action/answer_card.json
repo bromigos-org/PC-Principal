@@ -1,0 +1,1 @@
+{"type":"answer","card":{"schema":1,"title":"POLL","text":"Movie tonight?","fields":[{"label":"ARRIVAL","value":"3","bar":60},{"label":"HEAT","value":"2","bar":40}],"rows":[[{"id":"vote:0","label":"ARRIVAL","style":"primary","selected":true},{"id":"vote:1","label":"HEAT"},{"id":"close","label":"CLOSE","style":"danger","disabled":true}]],"footer":"5 votes"}}

@@ -12,6 +12,9 @@ conversations through [gnosis](https://github.com/bromigos-org/gnosis), the
 Bromigos memory service. It also runs a few community helpers, such as
 temporary voice channels and an anonymous vent channel.
 
+The same program can run in BRODEC rooms instead of on Discord. There it
+keeps far less: see [BRODEC](#brodec).
+
 > **Status: active.** The bot ships continuously from `main`. Every push to
 > `main` builds a new container image, and the running bot picks it up. See
 > [Build and deploy](#build-and-deploy).
@@ -266,6 +269,137 @@ both keys are required. Without them, attachment events keep metadata only.
 
 Keep tokens and keys in a secret manager. Never commit them.
 
+## BRODEC
+
+With `PCP_PLATFORM=brodec` the program runs PC Principal in
+[BRODEC](https://brodec.ai) rooms instead of on Discord. It is the same
+character and the same brain (`internal/core`) behind a second front end
+(`internal/brodec`). One process serves one platform. To be on both, run
+two.
+
+BRODEC rooms are end-to-end encrypted, so the bot does not connect to BRODEC
+itself. BRODEC's bot gateway runs beside it, holds the bot's keys, and does
+the decrypting and encrypting. This program holds no keys. The gateway POSTs
+each event meant for the bot to an HTTP endpoint here, signed, and carries
+out the actions the bot answers with.
+
+### What it does there
+
+- **Conversations.** Mention him or reply to him in a group, or write to him
+  in a direct message. He answers in character, as a reply to your message.
+- **`/help`.** A card that lists the commands, with two buttons: PRIVACY and
+  WHAT I SEE. Only the person who taps one sees its answer.
+- **`/ping`.** Replies "Pong!".
+- **`/poll Question | A | B ...`.** A card with a bar and a button for each
+  of 2 to 10 choices. A tap is confirmed privately and the card updates for
+  everyone. Each person has one vote and can change it. Nobody can see who
+  voted for what. A poll runs for 7 days and survives a restart.
+
+Nothing else from Discord is there: no threads, no voice channels, no vent
+channel, no ambient replies, no event ingestion, no backfill.
+
+`brodec/commands.json` is the commands manifest. Paste it into the bot's
+COMMANDS tab at the BRODEC developer portal (MANIFEST, USE THIS, SAVE), so
+that the apps offer the commands after `/`. A test keeps it in step with the
+commands in the code.
+
+### Privacy
+
+This is what the code does. The PRIVACY button says the same in the room.
+
+- **He only gets what is addressed to him.** In a group that is a message
+  that mentions him or replies to him, one of his commands, or a tap on one
+  of his buttons. In a direct message it is every message. A group message
+  that does not address him is dropped unread if the gateway ever hands one
+  over.
+- **Short context only.** For each room he keeps what was said to him and
+  what he answered: at most 12 messages, erased 2 hours after the last one.
+  Discord keeps 40 messages for 24 hours. A message you replied to is shown
+  to the model for that one answer and is not kept.
+- **No long-term memory.** gnosis is never called in this mode. The memory
+  settings are not even read, so nothing here knows where gnosis is or holds
+  a token for it. Nothing is ingested,
+  nothing is backfilled, and nothing crosses between rooms or between BRODEC
+  and Discord. The store keys differ too: `conversation:brodec:...` and
+  `brodec:...` here, against `conversation:guild:...`, `conversation:dm:...`
+  and `ambient:discord:...` on Discord.
+- **The model.** What is said to him goes to the chat endpoint at
+  `LITELLM_BASE_URL`, with the sender's Matrix ID as the speaker's label. The
+  gateway gives him no names. Set `BRODEC_AI_WHERE` so that the PRIVACY text
+  says truthfully where that model runs.
+- **Polls.** A poll keeps its question, its choices, the command that
+  started it, and one keyed hash per voter in place of the voter's ID, so a
+  vote can be changed. All of it is erased after 7 days.
+- **Logs.** This front end writes no message text and no sender ID to its
+  logs. An error from the chat endpoint is logged as the endpoint worded it.
+
+### Where he answers
+
+The gateway joins every room the bot is invited to, and anyone can message
+him. So he answers only where he has been allowed:
+
+- in the groups listed in `BRODEC_ALLOWED_ROOMS`
+- in direct messages from the people in `BRODEC_ALLOWED_DM_USERS` and
+  `BRODEC_ADMINS`
+
+Anywhere else he says one fixed line, at most once a day per room, and the
+model is never called. With all three lists empty he answers nobody.
+
+### BRODEC settings
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PCP_PLATFORM` | `discord` | `brodec` starts the BRODEC front end instead of Discord. Any other value stops the program. |
+| `BRODEC_GATEWAY_DATA` | none | The gateway's data directory, shared read-only with the bot. Required. The bot reads `webhook-public-key` and `local-api-token` there. |
+| `BRODEC_GATEWAY_URL` | `http://127.0.0.1:8788` | The gateway's local API. |
+| `BRODEC_LISTEN` | `127.0.0.1:8081` | Where the event endpoint listens. The path is `/brodec/events`. |
+| `BRODEC_GATEWAY_PUBLIC_KEY` | none | The gateway's public key itself (base64). When set, the key file is not read. |
+| `BRODEC_ALLOWED_ROOMS` | empty | Room IDs he answers in, separated by commas or spaces. |
+| `BRODEC_ALLOWED_DM_USERS` | empty | Matrix IDs he answers in direct messages. |
+| `BRODEC_ADMINS` | empty | Matrix IDs of the people who run him. They are answered in direct messages too. |
+| `BRODEC_BOT_HANDLE` | `pc_principal` | His handle. A mention of it is cut out of what goes to the model. |
+| `BRODEC_BOT_NAME` | `PC Principal` | His name, cut out the same way. |
+| `BRODEC_BOT_USER_ID` | none | His Matrix ID, cut out the same way. Optional. |
+| `BRODEC_AI_WHERE` | `an AI model on Bromigos' own servers` | Finishes "What you say to me goes to ..." in the PRIVACY text. Change it if your model runs elsewhere. |
+
+`LITELLM_BASE_URL`, `LITELLM_API_KEY` and `DRAGONFLY_ADDR` mean what they
+mean on Discord. `DRAGONFLY_ADDR` is required here: the short context, the
+polls and the once-a-day line are kept there. `DISCORD_BOT_TOKEN`,
+`ALLOWED_ROLES` and every `GNOSIS_*` and `DISCORD_*` setting are ignored.
+
+The token of the gateway's local API is a secret. It stays in the gateway's
+data directory and is never put in the environment.
+
+### Run it beside the gateway
+
+1. Run BRODEC's bot gateway with its webhook URL set to
+   `http://127.0.0.1:8081/brodec/events` and a data directory that persists.
+2. Run this program on the same host or in the same pod, so that both reach
+   each other over loopback. Give it the gateway's data directory read-only,
+   as the same user: the token file is readable by its owner only.
+
+```bash
+PCP_PLATFORM=brodec
+BRODEC_GATEWAY_DATA=/path/to/the/gateway/data
+BRODEC_ALLOWED_ROOMS='!yourRoomId:brodec.ai'
+LITELLM_BASE_URL=http://localhost:4000
+LITELLM_API_KEY=your-llm-key
+DRAGONFLY_ADDR=localhost:6379
+```
+
+The two can start in either order. The endpoint refuses everything that is
+not signed by the gateway: a bad signature, a missing header, or a timestamp
+more than 5 minutes off gets `401`. Until the gateway has written its public
+key the endpoint answers `503`, and the gateway tries again.
+
+Answers that need no model (`/help`, `/ping`, `/poll`, a tap) go back in the
+endpoint's answer. A conversation is answered through the gateway's local
+API once the model has replied. What he sends is clamped to the platform's
+limits before it leaves: a card's title, text, fields, rows and buttons, and
+at most 4 messages of 2000 bytes for one answer. Sends are paced to the
+platform's room limits: one a second with bursts of five, at most 20 a
+minute per room, and 30 a second overall.
+
 ## Test
 
 ```bash
@@ -278,6 +412,9 @@ The main test areas are listed below.
   the routing of a message to one handler.
 - `internal/commands/` covers the Discord handlers end to end, including
   degradation when a service is down.
+- `internal/brodec/` covers the BRODEC front end against the gateway's own
+  wire fixtures (`testdata/wire`): signatures, every kind of delivery, the
+  allowlists, the short context, card limits, pacing and polls.
 - `internal/characterization/` compares what the bot does for fixed messages
   with recorded transcripts. A change that is meant to leave Discord
   behaviour alone must leave them untouched.
@@ -329,7 +466,24 @@ out, revert the bot and gnosis together.
   stopped acknowledging heartbeats. Point a Kubernetes liveness probe at
   `/health` and the pod is restarted when the bot is running but offline.
 
-The bot also watches itself. After 90 seconds of silence it logs the gateway
+On BRODEC (`PCP_PLATFORM=brodec`) the same paths report the gateway in place
+of Discord.
+
+```json
+{"status": "ok", "checks": {"gateway": "ready", "gateway_key": "loaded", "last_delivery": "2026-11-09T21:40:00Z", "dragonfly": "ok"}, "checkedAt": "2026-11-09T21:41:00Z"}
+```
+
+- `gateway` is `ready` when the gateway's local API answers, which it does
+  once the gateway is signed in and delivering. Otherwise it is
+  `unreachable` or `not_ready`.
+- `gateway_key` is `loaded`, `missing` (the gateway has not written its key
+  file yet) or `mismatch` (the gateway signs with another key than the one
+  the bot checks with, so every delivery is refused).
+- The answer is always `200`, with `"status": "degraded"` when something is
+  off. The gateway is a separate process, and restarting the bot does not
+  bring it back.
+
+The Discord bot also watches itself. After 90 seconds of silence it logs the gateway
 state and the heartbeat's age on every check. At 5 minutes it logs a
 goroutine dump, which shows where a reconnect is stuck. At 7 minutes it exits
 with status 1, so a supervisor without a health probe (`docker run
@@ -342,10 +496,12 @@ reconnect messages are logged as they happen.
 | Path | Contents |
 |---|---|
 | `cmd/pc-principal/` | Entry point. |
-| `internal/run/` | Startup, Discord event handlers and the health server. |
+| `internal/run/` | Startup, the platform switch, Discord event handlers and the health server. |
 | `internal/gateway/` | Watchdog for the Discord gateway connection. |
 | `internal/core/` | The bot's brain, free of any chat platform: persona, conversation, prompt assembly, memory recall and message routing. |
 | `internal/commands/` | The Discord front end: mention commands, voice channels, anonymous vent, and the adapter between Discord and the core. |
+| `internal/brodec/` | The BRODEC front end: the signed event endpoint, the client of the gateway's local API, allowlists, `/help`, `/ping` and `/poll`. |
+| `brodec/commands.json` | The commands manifest for the BRODEC developer portal. |
 | `internal/characterization/` | Recorded transcripts of the Discord conversation paths, as tests. |
 | `internal/memory/` | HTTP client for gnosis. |
 | `internal/discordevent/` | Turns Discord events into gnosis events. |

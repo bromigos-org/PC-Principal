@@ -35,6 +35,14 @@ var (
 func Init() {
 	_ = godotenv.Load()
 
+	switch platform, err := selectedPlatform(os.Getenv(platformEnv)); {
+	case err != nil:
+		log.Fatal(err)
+	case platform == platformBRODEC:
+		runBRODEC()
+		return
+	}
+
 	if addr := os.Getenv("DRAGONFLY_ADDR"); addr != "" {
 		store.Init(addr)
 		log.Printf("Connected to DragonflyDB at %s", addr)
